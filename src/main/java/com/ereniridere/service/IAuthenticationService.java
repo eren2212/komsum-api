@@ -4,9 +4,13 @@ import com.ereniridere.dto.request.auth.DtoLoginRequest;
 import com.ereniridere.dto.request.auth.DtoRegisterRequest;
 import com.ereniridere.dto.response.DtoAuthenticationResponse;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 public interface IAuthenticationService {
 
 	public DtoAuthenticationResponse register(DtoRegisterRequest request);
 
 	public DtoAuthenticationResponse login(DtoLoginRequest request);
+
+	public DtoAuthenticationResponse refreshToken(HttpServletRequest request);
 }

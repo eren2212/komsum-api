@@ -13,6 +13,7 @@ import com.ereniridere.dto.response.DtoAuthenticationResponse;
 import com.ereniridere.entity.RootEntity;
 import com.ereniridere.service.IAuthenticationService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -32,8 +33,15 @@ public class AuthenticationControllerImpl extends BaseController implements IAut
 	@PostMapping(path = "/login")
 	@Override
 	public RootEntity<DtoAuthenticationResponse> login(@Valid @RequestBody DtoLoginRequest request) {
-		// TODO Auto-generated method stub
+
 		return ok(authenticationService.login(request));
+	}
+
+	@PostMapping(path = "/refresh-token")
+	@Override
+	public RootEntity<DtoAuthenticationResponse> refreshToken(HttpServletRequest request) {
+
+		return ok(authenticationService.refreshToken(request));
 	}
 
 }

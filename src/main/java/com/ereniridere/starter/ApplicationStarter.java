@@ -10,10 +10,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @ComponentScan(basePackages = "com.ereniridere")
 @EntityScan(basePackages = "com.ereniridere")
 @SpringBootApplication
-public class KomsumStarter {
+public class ApplicationStarter {
 
 	public static void main(String[] args) {
-		SpringApplication.run(KomsumStarter.class, args);
+		SpringApplication.run(ApplicationStarter.class, args);
 	}
 
 }
