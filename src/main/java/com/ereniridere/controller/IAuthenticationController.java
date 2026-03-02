@@ -1,0 +1,12 @@
+package com.ereniridere.controller;
+
+import com.ereniridere.dto.request.auth.DtoLoginRequest;
+import com.ereniridere.dto.request.auth.DtoRegisterRequest;
+import com.ereniridere.dto.response.DtoAuthenticationResponse;
+import com.ereniridere.entity.RootEntity;
+
+public interface IAuthenticationController {
+	public RootEntity<DtoAuthenticationResponse> register(DtoRegisterRequest request);
+
+	public RootEntity<DtoAuthenticationResponse> login(DtoLoginRequest request);
+}
