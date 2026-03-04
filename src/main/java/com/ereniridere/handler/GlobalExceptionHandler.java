@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -56,11 +57,9 @@ public class GlobalExceptionHandler {
 
 	}
 
-	public ResponseEntity<ApiError> handleBadCredentialsException(
-			org.springframework.security.authentication.BadCredentialsException ex, WebRequest webRequest) {
+	@ExceptionHandler(value = { BadCredentialsException.class })
+	public ResponseEntity<ApiError> handleBadCredentialsException(BadCredentialsException ex, WebRequest webRequest) {
 
-		// Status'ü 401 Unauthorized yapıyoruz ve senin kendi yazdığın ApiError zarfına
-		// koyuyoruz!
 		ApiError<String> error = createApiError("E-posta veya şifre hatalı kanzi!", webRequest);
 		error.setStatus(HttpStatus.UNAUTHORIZED.value());
 

@@ -1,5 +1,6 @@
 package com.ereniridere.entity;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -11,62 +12,76 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data // Lombok: Getter, Setter, toString hepsini otomatik yazar.
-@Builder // Lombok: Nesne üretirken 'builder' pattern kullanmamızı sağlar.
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "users") // 🚨 SENIOR DETAYI: PostgreSQL'de "user" kelimesi özel (reserved) bir
-						// kelimedir. Tablo adını o yüzden "users" yapıyoruz, yoksa Supabase hata
-						// fırlatır!
+@Table(name = "users")
 public class User implements UserDetails {
 
-	@Id // Birincil anahtar (Primary Key)
-	@GeneratedValue(strategy = GenerationType.IDENTITY) // ID'yi Supabase otomatik artırsın (1, 2, 3...)
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer id;
 
 	private String firstname;
 	private String lastname;
 
-	@Column(unique = true) // Aynı e-posta ile iki kişi kayıt olamasın
+	@Column(unique = true)
 	private String email;
 
 	private String password;
 
-	@Enumerated(EnumType.STRING) // Veritabanına sayı (0,1) olarak değil, metin ("USER", "ADMIN") olarak kaydet.
+	@Enumerated(EnumType.STRING)
 	private Role role;
 
-	// --- BURADAN AŞAĞISI SPRING SECURITY'NİN ZORUNLU KILDIĞI METODLAR ---
+	// --- KOMŞUM UYGULAMASI YENİ ÖZELLİKLERİ ---
 
+	// 1. Mahalle Kancası (Veritabanında 'neighborhood_id' adında bir sütun açacak)
+	@ManyToOne(fetch = FetchType.LAZY) // LAZY: Sadece mahalle bilgisini istediğimizde getir, RAM'i yorma!
+	@JoinColumn(name = "neighborhood_id")
+	private Neighborhood neighborhood;
+
+	// 2. Doğrulanmış Komşu Rozeti (İlk kayıtta varsayılan olarak false/kapatık
+	// gelir)
+	@Builder.Default
+	private boolean isVerifiedNeighbor = false;
+
+	// 3. Yardımseverlik Puanı (İyilik yaptıkça artacak, ilk kayıtta 0)
+	@Builder.Default
+	private Integer karmaScore = 0;
+
+	// 4. Spam Engellemek İçin Son Mahalle Değiştirme Tarihi
+	private LocalDateTime lastNeighborhoodChange;
+
+	// --- SPRING SECURITY METODLARI (Aşağısı eskisi gibi kalacak) ---
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		// Kullanıcının rolünü Spring Security'nin anladığı formata çevirip veriyoruz.
 		return List.of(new SimpleGrantedAuthority(role.name()));
 	}
 
 	@Override
 	public String getPassword() {
-		return password; // Şifreyi dön
+		return password;
 	}
 
 	@Override
 	public String getUsername() {
-		// 🚨 ÖNEMLİ: Spring Security kullanıcı adı (username) bekler ama bizim
-		// sistemimizde girişler E-posta ile yapılıyor. O yüzden burada email dönüyoruz!
 		return email;
 	}
 
-	// Hesapların süresi doldu mu, kilitli mi gibi kontroller. Şimdilik hepsine
-	// 'true' (aktif) diyoruz.
 	@Override
 	public boolean isAccountNonExpired() {
 		return true;
