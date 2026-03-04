@@ -10,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.ereniridere.security.JwtAuthenticationEntryPoint;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,8 @@ public class SecurityConfig {
 	private final JwtAuthenticationFilter jwtAuthFilter;
 	// AppConfig'den gelen kıyaslama cihazımız (Motor)
 	private final AuthenticationProvider authenticationProvider;
+
+	private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -45,6 +48,10 @@ public class SecurityConfig {
 						// Sunucuda kimseyi hatırlama (Session tutma). Gelen her istekte bileti (JWT)
 						// yeniden kontrol et!
 						.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+				.exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
 				// 4. Aletleri Sisteme Tanıt
 				.authenticationProvider(authenticationProvider)

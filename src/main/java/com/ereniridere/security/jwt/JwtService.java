@@ -51,6 +51,12 @@ public class JwtService {
 		return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
 	}
 
+	public String generateRefreshToken(UserDetails userDetails) {
+		return Jwts.builder().setSubject(userDetails.getUsername()).setIssuedAt(new Date(System.currentTimeMillis()))
+				.setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 7)) // 7 GÜN
+				.signWith(getSignInKey(), SignatureAlgorithm.HS256).compact();
+	}
+
 	// Token'ın süresi dolmuş mu kontrolü
 	private boolean isTokenExpired(String token) {
 		return extractExpiration(token).before(new Date());
