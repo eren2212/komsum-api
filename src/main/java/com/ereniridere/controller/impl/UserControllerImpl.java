@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ereniridere.controller.IUserController;
+import com.ereniridere.dto.request.user.DtoUserPassword;
 import com.ereniridere.dto.request.user.DtoUserUpdate;
 import com.ereniridere.dto.response.User.DtoNeighbour;
 import com.ereniridere.dto.response.User.DtoUserProfile;
@@ -59,6 +60,17 @@ public class UserControllerImpl extends BaseController implements IUserControlle
 		Integer userId = currentUser.getId();
 
 		return ok(userService.updateProfile(userId, dtoUserUpdate));
+	}
+
+	// Şifre güncelleme
+	@PatchMapping(path = "/me/update-password")
+	@Override
+	public RootEntity<Boolean> updatePassword(@Valid @RequestBody DtoUserPassword dtoUserPassword) {
+
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+		Integer userId = currentUser.getId();
+		return ok(userService.updatePassword(userId, dtoUserPassword));
 	}
 
 }

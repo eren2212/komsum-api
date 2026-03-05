@@ -5,8 +5,10 @@ import java.util.Optional;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.ereniridere.dto.request.user.DtoUserPassword;
 import com.ereniridere.dto.request.user.DtoUserUpdate;
 import com.ereniridere.dto.response.User.DtoNeighborhood;
 import com.ereniridere.dto.response.User.DtoNeighbour;
@@ -18,10 +20,13 @@ import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
 import com.ereniridere.repository.NeighborhoodRepository;
 import com.ereniridere.repository.UserRepository;
+import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.service.IUserService;
 
 @Service
 public class UserServiceImp implements IUserService {
+
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -29,6 +34,14 @@ public class UserServiceImp implements IUserService {
 	@Autowired
 	private NeighborhoodRepository neighborhoodRepository;
 
+	@Autowired
+	private PasswordEncoder passwordEncoder;
+
+	UserServiceImp(JwtAuthenticationFilter jwtAuthenticationFilter) {
+		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+	}
+
+	// Kendi Profil bilgilerini alma
 	@Override
 	public DtoUserProfile getMyProfile(Integer id) {
 
@@ -52,6 +65,7 @@ public class UserServiceImp implements IUserService {
 		return dtoUserProfileResponse;
 	}
 
+	// Herhangi bir kişinin profilini alma
 	@Override
 	public DtoNeighbour getNeighbourProfile(Integer id) {
 
@@ -74,6 +88,7 @@ public class UserServiceImp implements IUserService {
 		return dtoNeighbour;
 	}
 
+	// İsim ,soyisim ve adres güncelleme
 	@Override
 	public DtoUserProfile updateProfile(Integer id, DtoUserUpdate dtoUserUpdate) {
 
@@ -121,4 +136,33 @@ public class UserServiceImp implements IUserService {
 		return getMyProfile(id);
 	}
 
+	// Şifre güncelleme
+	@Override
+	public boolean updatePassword(Integer idInteger, DtoUserPassword dtoUserPassword) {
+		Optional<User> optional = userRepository.findById(idInteger);
+
+		if (optional.isEmpty()) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
+		}
+
+		User dbUser = optional.get();
+
+		if (!passwordEncoder.matches(dtoUserPassword.getOldPassword(), dbUser.getPassword())) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Mevcut şifrenizi yanlış girdiniz."));
+		}
+
+		if (!dtoUserPassword.getNewPassword().equals(dtoUserPassword.getConfirmNewPassword())) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED,
+					"Yeni şifreler birbiriyle eşleşmiyor. Lütfen tekrar deneyin."));
+		}
+
+		// 4. Bütün güvenlik duvarlarını geçtik! Artık içimiz rahat bir şekilde şifreyi
+		// kaydet
+		dbUser.setPassword(passwordEncoder.encode(dtoUserPassword.getNewPassword()));
+		userRepository.save(dbUser);
+
+		return true; // İşlem başarılı!
+
+	}
 }

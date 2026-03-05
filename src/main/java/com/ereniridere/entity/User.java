@@ -44,6 +44,10 @@ public class User implements UserDetails {
 
 	private String password;
 
+	private String resetOtp;
+
+	private LocalDateTime resetOtpExpiration;
+
 	@Enumerated(EnumType.STRING)
 	private Role role;
 

@@ -1,5 +1,6 @@
 package com.ereniridere.service;
 
+import com.ereniridere.dto.request.user.DtoUserPassword;
 import com.ereniridere.dto.request.user.DtoUserUpdate;
 import com.ereniridere.dto.response.User.DtoNeighbour;
 import com.ereniridere.dto.response.User.DtoUserProfile;
@@ -11,5 +12,7 @@ public interface IUserService {
 	public DtoNeighbour getNeighbourProfile(Integer id);
 
 	public DtoUserProfile updateProfile(Integer id, DtoUserUpdate dtoUserUpdate);
+
+	public boolean updatePassword(Integer idInteger, DtoUserPassword dtoUserPassword);
 
 }
