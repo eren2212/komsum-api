@@ -132,8 +132,13 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 	@Override
 	public void forgotPassword(DtoForgotPassword request) {
 		// 1. Kullanıcıyı bul
-		User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new BaseException(
-				new ErrorMessage(MessageType.NO_RECORD_EXIST, "Bu e-posta ile kayıtlı komşu bulunamadı.")));
+		Optional<User> optional = userRepository.findByEmail(request.getEmail());
+
+		if (optional.isEmpty()) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.NO_RECORD_EXIST, "Bu e-posta ile kayıtlı komşu bulunamadı."));
+		}
+		User user = optional.get();
 
 		// 2. 6 Haneli Rastgele OTP Üret (Örn: 482910)
 		String otp = String.format("%06d", new Random().nextInt(999999));
@@ -153,11 +158,11 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 
 		// 1. Adamı bul
 		Optional<User> optional = userRepository.findByEmail(request.getEmail());
-		User dbUser = optional.get();
 
 		if (optional.isEmpty()) {
 			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
 		}
+		User dbUser = optional.get();
 
 		// 2. KOD DOĞRU MU?
 		if (dbUser.getResetOtp() == null || !dbUser.getResetOtp().equals(request.getOtp())) {
