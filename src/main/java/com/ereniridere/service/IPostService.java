@@ -16,4 +16,7 @@ public interface IPostService {
 	public Page<DtoPost> getMyPost(Integer userId, int pageNo, int pageSize);
 
 	public boolean updatePostText(Integer userId, Integer postId, DtoUpdatePost request);
+
+	public String toggleLike(Integer userId, Integer postId);
+
 }

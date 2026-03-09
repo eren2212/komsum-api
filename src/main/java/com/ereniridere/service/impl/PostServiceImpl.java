@@ -13,22 +13,34 @@ import com.ereniridere.dto.request.post.DtoCreatePost;
 import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
 import com.ereniridere.entity.Post;
+import com.ereniridere.entity.PostLike;
 import com.ereniridere.entity.User;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
+import com.ereniridere.repository.PostLikeRepository;
 import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.UserRepository;
+import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.service.IPostService;
 
 @Service
 public class PostServiceImpl implements IPostService {
+
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
 	@Autowired
 	private UserRepository userRepository;
 
 	@Autowired
 	private PostRepository postRepository;
+
+	@Autowired
+	private PostLikeRepository postLikeRepository;
+
+	PostServiceImpl(JwtAuthenticationFilter jwtAuthenticationFilter) {
+		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+	}
 
 	@Override
 	public DtoPost createPost(Integer userId, DtoCreatePost request) {
@@ -204,6 +216,43 @@ public class PostServiceImpl implements IPostService {
 		postRepository.save(dbPost);
 
 		return true;
+	}
+
+	@Override
+	public String toggleLike(Integer userId, Integer postId) {
+
+		Optional<Post> optionalPost = postRepository.findById(postId);
+
+		if (optionalPost.isEmpty()) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Post bulunamadı"));
+		}
+
+		if (!optionalPost.get().isActive()) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, " Silinmiş bir gönderiyi beğenemesin!"));
+		}
+
+		Optional<PostLike> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+		if (existingLike.isPresent()) {
+
+			postLikeRepository.delete(existingLike.get());
+			return "Dislike işlemi gerçekleştirildi";
+		} else {
+			Optional<User> optionalUser = userRepository.findById(userId);
+
+			if (optionalUser.isEmpty()) {
+				throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
+			}
+			PostLike newPostLike = new PostLike();
+
+			newPostLike.setPost(optionalPost.get());
+			newPostLike.setUser(optionalUser.get());
+			postLikeRepository.save(newPostLike);
+
+			return "Like işlemi gerçekleştirildi";
+
+		}
+
 	}
 
 }

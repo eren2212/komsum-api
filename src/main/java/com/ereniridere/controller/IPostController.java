@@ -19,4 +19,6 @@ public interface IPostController {
 
 	public RootEntity<Boolean> updatePostText(Integer postId, DtoUpdatePost request);
 
+	public RootEntity<String> toogleLike(Integer postId);
+
 }

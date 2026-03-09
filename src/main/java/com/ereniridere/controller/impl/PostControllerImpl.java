@@ -88,4 +88,15 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 		return ok(postService.updatePostText(userId, postId, request));
 	}
 
+	@PostMapping("/{id}/like")
+	@Override
+	public RootEntity<String> toogleLike(@PathVariable(value = "id") Integer postId) {
+
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+		Integer userId = currentUser.getId();
+
+		return ok(postService.toggleLike(userId, postId));
+	}
+
 }
