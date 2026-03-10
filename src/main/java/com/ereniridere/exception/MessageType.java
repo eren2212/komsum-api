@@ -7,7 +7,8 @@ public enum MessageType {
 
 	NO_RECORD_EXIST("1001", "Kayıt Bulunamadı:"), GENERAL_EXCEPTION("9999", "Herhangi bir hata oldu:"),
 	RECORD_ALREADY_EXISTS("1002", "Bu kayıt zaten kullanılıyor:"), COOLDOWN_ACTIVE("1004", "Bekleme süresi:"),
-	VALIDATION_FAILED("1006", "Doğrulama hatası:");
+	VALIDATION_FAILED("1006", "Doğrulama hatası:"),
+	TOO_MANY_REQUESTS("1008", "Çok hızlı işlem yapıyorsun , biraz yavaşla!");
 
 	private String code;
 

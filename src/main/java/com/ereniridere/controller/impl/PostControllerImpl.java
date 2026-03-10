@@ -18,8 +18,13 @@ import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
 import com.ereniridere.entity.RootEntity;
 import com.ereniridere.entity.User;
+import com.ereniridere.exception.BaseException;
+import com.ereniridere.exception.ErrorMessage;
+import com.ereniridere.exception.MessageType;
 import com.ereniridere.service.IPostService;
+import com.ereniridere.service.IRateLimitingService;
 
+import io.github.bucket4j.Bucket;
 import jakarta.validation.Valid;
 
 @RestController
@@ -28,6 +33,9 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 
 	@Autowired
 	private IPostService postService;
+
+	@Autowired
+	private IRateLimitingService rateLimitingService;
 
 	@PostMapping(path = "/create")
 	@Override
@@ -96,7 +104,14 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 
 		Integer userId = currentUser.getId();
 
-		return ok(postService.toggleLike(userId, postId));
+		Bucket bucket = rateLimitingService.resolveBucket(userId);
+
+		if (bucket.tryConsume(1)) {
+			return ok(postService.toggleLike(userId, postId));
+		} else {
+			throw new BaseException(new ErrorMessage(MessageType.TOO_MANY_REQUESTS, null));
+		}
+
 	}
 
 }
