@@ -12,9 +12,11 @@ import org.springframework.stereotype.Service;
 import com.ereniridere.dto.request.post.DtoCreatePost;
 import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
+import com.ereniridere.entity.MerchantProfile;
 import com.ereniridere.entity.Post;
 import com.ereniridere.entity.PostLike;
 import com.ereniridere.entity.User;
+import com.ereniridere.entity.enums.PostType;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -58,6 +60,20 @@ public class PostServiceImpl implements IPostService {
 					"Kanzi bir mahalleye kayıt olmadan gönderi paylaşamazsın!"));
 		}
 
+		if (request.getType() == PostType.SPONSORED) {
+			// Eğer adam SPONSORED atmaya çalışıyorsa, dükkanı var mı ve onaylı mı
+			// bakıyoruz!
+			MerchantProfile esnaf = dbUser.getMerchantProfile();
+
+			if (esnaf == null) {
+				throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED,
+						"Esnaf profilin yok, sponsorlu post atamazsın!"));
+			}
+			if (!esnaf.isVerified()) {
+				throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED,
+						"Esnaf profilin henüz onaylanmamış. Onaylanana kadar dükkan adına post atamazsın!"));
+			}
+		}
 		Post newPost = new Post();
 
 		// 1. İstekten gelen düz verileri (content, imageUrl, type) tek satırda Post'a
@@ -85,6 +101,7 @@ public class PostServiceImpl implements IPostService {
 		dtoPost.setAuthorFirstName(dbUser.getFirstname());
 		dtoPost.setAuthorLastName(dbUser.getLastname());
 		dtoPost.setNeighborhoodName(dbUser.getNeighborhood().getName());
+		dtoPost.setShopName(dbUser.getMerchantProfile().getShopName());
 
 		return dtoPost;
 
@@ -116,14 +133,16 @@ public class PostServiceImpl implements IPostService {
 		// objelerine çevir (.map metodu burada hayat kurtarır)
 		return postPage.map(post -> {
 			DtoPost dtoPost = new DtoPost();
-
-			// Düz verileri kopyala
 			BeanUtils.copyProperties(post, dtoPost);
 
-			// Sadece ekranda lazım olan kancalı verileri ekle
 			dtoPost.setAuthorFirstName(post.getAuthor().getFirstname());
 			dtoPost.setAuthorLastName(post.getAuthor().getLastname());
 			dtoPost.setNeighborhoodName(post.getNeighborhood().getName());
+
+			// İŞTE SİHİRLİ DOKUNUŞ: Eğer post SPONSORED ise dükkan adını da DTO'ya ekle!
+			if (post.getType() == PostType.SPONSORED && post.getAuthor().getMerchantProfile() != null) {
+				dtoPost.setShopName(post.getAuthor().getMerchantProfile().getShopName());
+			}
 
 			return dtoPost;
 		});
@@ -176,14 +195,16 @@ public class PostServiceImpl implements IPostService {
 		Page<Post> postPage = postRepository.findByAuthorIdAndIsActiveTrueOrderByCreatedAtDesc(userId, pageable);
 		return postPage.map(post -> {
 			DtoPost dtoPost = new DtoPost();
-
-			// Düz verileri kopyala
 			BeanUtils.copyProperties(post, dtoPost);
 
-			// Sadece ekranda lazım olan kancalı verileri ekle
 			dtoPost.setAuthorFirstName(post.getAuthor().getFirstname());
 			dtoPost.setAuthorLastName(post.getAuthor().getLastname());
 			dtoPost.setNeighborhoodName(post.getNeighborhood().getName());
+
+			// İŞTE SİHİRLİ DOKUNUŞ: Eğer post SPONSORED ise dükkan adını da DTO'ya ekle!
+			if (post.getType() == PostType.SPONSORED && post.getAuthor().getMerchantProfile() != null) {
+				dtoPost.setShopName(post.getAuthor().getMerchantProfile().getShopName());
+			}
 
 			return dtoPost;
 		});
