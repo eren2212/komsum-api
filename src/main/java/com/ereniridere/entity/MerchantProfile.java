@@ -53,6 +53,8 @@ public class MerchantProfile {
 	@Builder.Default
 	private boolean isVerified = false;
 
+	private String profileImageUrl;
+
 	// SENIOR DOKUNUŞU 2: Bu dükkan KİMİN? (Sadece 1 tane dükkanı olabilir)
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false, unique = true)

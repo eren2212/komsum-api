@@ -9,24 +9,37 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ereniridere.dto.request.Merchant.DtoCreateMerchant;
+import com.ereniridere.dto.request.Merchant.DtoUpdateMerchant;
 import com.ereniridere.dto.response.Merchant.DtoMerchant;
 import com.ereniridere.entity.MerchantProfile;
+import com.ereniridere.entity.Neighborhood;
 import com.ereniridere.entity.User;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
+import com.ereniridere.handler.GlobalExceptionHandler;
 import com.ereniridere.repository.MerchantProfileRepository;
+import com.ereniridere.repository.NeighborhoodRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IMerchantService;
 
 @Service
 public class MerchantServiceImpl implements IMerchantService {
 
+	private final GlobalExceptionHandler globalExceptionHandler;
+
 	@Autowired
 	private UserRepository userRepository;
 
 	@Autowired
 	private MerchantProfileRepository merchantRepository;
+
+	@Autowired
+	private NeighborhoodRepository neighborhoodRepository;
+
+	MerchantServiceImpl(GlobalExceptionHandler globalExceptionHandler) {
+		this.globalExceptionHandler = globalExceptionHandler;
+	}
 
 	// Ensaf profil oluşturma
 	@Override
@@ -128,6 +141,81 @@ public class MerchantServiceImpl implements IMerchantService {
 		dtoMerchant.setOwnerLastName(dbUser.getLastname());
 
 		return dtoMerchant;
+	}
+
+	// Bir esnaf işletme bilgilerini değiştirme /güncelleme
+	@Override
+	public DtoMerchant updateMerchantProfile(Integer userId, DtoUpdateMerchant request) {
+
+		Optional<MerchantProfile> optional = merchantRepository.findByUserId(userId);
+
+		if (optional.isEmpty()) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.NO_RECORD_EXIST, "Güncelleyecek bir esnaf profilin yok!"));
+		}
+
+		MerchantProfile dbProfile = optional.get();
+
+		if (request.getShopName() != null)
+			dbProfile.setShopName(request.getShopName());
+		if (request.getPhone() != null)
+			dbProfile.setPhone(request.getPhone());
+		if (request.getDescription() != null)
+			dbProfile.setDescription(request.getDescription());
+		if (request.getProfileImageUrl() != null)
+			dbProfile.setProfileImageUrl(request.getProfileImageUrl());
+
+		if (request.getNeighborhoodId() != null
+				&& !dbProfile.getNeighborhood().getId().equals(request.getNeighborhoodId())) {
+			Neighborhood newNeighborhood = neighborhoodRepository.findById(request.getNeighborhoodId())
+					.orElseThrow(() -> new BaseException(
+							new ErrorMessage(MessageType.NO_RECORD_EXIST, "Seçtiğiniz mahalle bulunamadı!")));
+			dbProfile.setNeighborhood(newNeighborhood);
+		}
+
+		MerchantProfile updatedProfile = merchantRepository.save(dbProfile);
+
+		DtoMerchant dtoMerchant = new DtoMerchant();
+		BeanUtils.copyProperties(updatedProfile, dtoMerchant);
+		dtoMerchant.setOwnerFirstName(dbProfile.getUser().getFirstname());
+		dtoMerchant.setOwnerLastName(dbProfile.getUser().getLastname());
+
+		return dtoMerchant;
+	}
+
+	@Override
+	public DtoMerchant getMyMerchantProfile(Integer userId) {
+
+		Optional<MerchantProfile> optional = merchantRepository.findByUserId(userId);
+
+		if (optional.isEmpty()) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Henüz bir esnaf profilin yok!"));
+		}
+
+		MerchantProfile dbProfile = optional.get();
+
+		DtoMerchant dtoMerchant = new DtoMerchant();
+		BeanUtils.copyProperties(dbProfile, dtoMerchant);
+		dtoMerchant.setOwnerFirstName(dbProfile.getUser().getFirstname());
+		dtoMerchant.setOwnerLastName(dbProfile.getUser().getLastname());
+
+		return dtoMerchant;
+	}
+
+	@Override
+	public boolean deleteMyMerchantProfile(Integer userId) {
+
+		Optional<MerchantProfile> optional = merchantRepository.findByUserId(userId);
+
+		if (optional.isEmpty()) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Henüz bir esnaf profilin yok!"));
+		}
+
+		MerchantProfile dbProfile = optional.get();
+
+		merchantRepository.delete(dbProfile);
+
+		return true;
 	}
 
 }
