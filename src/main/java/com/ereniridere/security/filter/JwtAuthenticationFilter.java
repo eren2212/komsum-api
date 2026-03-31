@@ -80,6 +80,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 			// İşimiz bitti, isteği uygulamanın geri kalanına (Controller'lara) iletiyoruz.
 			filterChain.doFilter(request, response);
+
 		} catch (ExpiredJwtException ex) {
 			// SENIOR DOKUNUŞU 1: Token süresi dolmuşsa!
 			handleExceptionInFilter(response, "TOKEN_EXPIRED",
