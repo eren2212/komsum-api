@@ -49,6 +49,12 @@ public class User implements UserDetails {
 
 	private LocalDateTime resetOtpExpiration;
 
+	@Column(name = "avatar_url")
+	private String avatarUrl;
+
+	@Column(length = 500)
+	private String bio;
+
 	@Enumerated(EnumType.STRING)
 	private Role role;
 

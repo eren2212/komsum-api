@@ -13,4 +13,9 @@ public class DtoUserUpdate {
 	private String lastname;
 
 	private Integer neighborhoodId;
+
+	@Size(max = 250, message = "Biyografi en fazla 250 karakter olabilir")
+	private String bio;
+
+	private String avatarUrl;
 }

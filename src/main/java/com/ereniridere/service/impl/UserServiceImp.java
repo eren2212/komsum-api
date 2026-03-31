@@ -89,29 +89,41 @@ public class UserServiceImp implements IUserService {
 	}
 
 	// İsim ,soyisim ve adres güncelleme
+	// İsim, soyisim, adres, bio ve avatar güncelleme
 	@Override
 	public DtoUserProfile updateProfile(Integer id, DtoUserUpdate dtoUserUpdate) {
 
 		Optional<User> optional = userRepository.findById(id);
 
 		if (optional.isEmpty()) {
-			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadi"));
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
 		}
 
 		User dbUser = optional.get();
 
-		if (dbUser.getFirstname() != null && !dtoUserUpdate.getFirstname().trim().isEmpty()) {
-			dbUser.setFirstname(dtoUserUpdate.getFirstname());
+		// 🚨 SENIOR DOKUNUŞU (NullPointerException Koruması):
+		// Önce dtoUserUpdate içinden gelen değer null mu diye bakıyoruz ki patlamasın!
+		if (dtoUserUpdate.getFirstname() != null && !dtoUserUpdate.getFirstname().trim().isEmpty()) {
+			dbUser.setFirstname(dtoUserUpdate.getFirstname().trim());
 		}
 
-		if (dbUser.getLastname() != null && !dtoUserUpdate.getLastname().trim().isEmpty()) {
-			dbUser.setLastname(dtoUserUpdate.getLastname());
+		if (dtoUserUpdate.getLastname() != null && !dtoUserUpdate.getLastname().trim().isEmpty()) {
+			dbUser.setLastname(dtoUserUpdate.getLastname().trim());
 		}
 
+		// YENİ ALANLAR (Esnek Güncelleme)
+		if (dtoUserUpdate.getBio() != null) {
+			dbUser.setBio(dtoUserUpdate.getBio().trim());
+		}
+
+		if (dtoUserUpdate.getAvatarUrl() != null && !dtoUserUpdate.getAvatarUrl().trim().isEmpty()) {
+			dbUser.setAvatarUrl(dtoUserUpdate.getAvatarUrl().trim());
+		}
+
+		// SENİN EFSANE MAHALLE GÜNCELLEME MANTIĞIN (Buna hiç dokunmuyorum, mükemmel)
 		if (dtoUserUpdate.getNeighborhoodId() != null && (dbUser.getNeighborhood() == null
 				|| !dbUser.getNeighborhood().getId().equals(dtoUserUpdate.getNeighborhoodId()))) {
 
-			// Eğer daha önce mahalle değiştirmişse ve 6 ay geçmemişse, fırlat hatayı!
 			if (dbUser.getLastNeighborhoodChange() != null
 					&& dbUser.getLastNeighborhoodChange().plusDays(180).isAfter(LocalDateTime.now())) {
 				throw new BaseException(new ErrorMessage(MessageType.COOLDOWN_ACTIVE,
@@ -129,11 +141,11 @@ public class UserServiceImp implements IUserService {
 			dbUser.setNeighborhood(newNeighborhood);
 			dbUser.setLastNeighborhoodChange(LocalDateTime.now());
 			dbUser.setVerifiedNeighbor(false);
-
 		}
 
 		userRepository.save(dbUser);
-		return getMyProfile(id);
+
+		return getMyProfile(id); // Güncel halini geri dön!
 	}
 
 	// Şifre güncelleme

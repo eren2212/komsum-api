@@ -19,4 +19,8 @@ public class DtoUserProfile {
 
 	private Integer karmaScore = 0;
 
+	private String avatarUrl;
+
+	private String bio;
+
 }
