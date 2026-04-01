@@ -41,6 +41,9 @@ public class SecurityConfig {
 						.requestMatchers("/api/auth/**").permitAll()
 						// Geri kalan BÜTÜN yollara (örn: /api/pets, /api/appointments) GİRİŞ
 						// ZORUNLUDUR! (Biletli)
+
+						.requestMatchers("/api/locations/**").permitAll()
+						// Lokasyon verilerini herkese açıyoruz!
 						.anyRequest().authenticated())
 
 				// 3. Oturum Yönetimi (Stateless)
