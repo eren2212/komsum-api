@@ -2,21 +2,20 @@ spring:
   datasource:
     url: jdbc:postgresql://aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
     username: postgres.dtrqehgokyldwswyddvs
-    password: qqhLJukSssJ81yiq
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   mail:
     host: smtp.gmail.com
     port: 587
     username: ereniridere7@gmail.com
-    password: gpno ngbf mtfn taqi
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
-
   jpa:
     hibernate:
       ddl-auto: update
@@ -27,5 +26,5 @@ spring:
         format_sql: true	
 supabase:
   url: https://dtrqehgokyldwswyddvs.supabase.co
-  key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0cnFlaGdva3lsZHdzd3lkZHZzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjM2Mjc2OCwiZXhwIjoyMDg3OTM4NzY4fQ.ZgaKD9q_Fe-kPAl08ccsLVs4DN965MOlkXsl1osuTxk
+  key: ${SUPABASE_KEY}
   bucket: komsum-images
