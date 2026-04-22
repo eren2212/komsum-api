@@ -2,6 +2,8 @@ package com.ereniridere.dto.response.post;
 
 import java.time.LocalDateTime;
 
+import com.ereniridere.entity.enums.PostType;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +21,7 @@ public class DtoPost {
 
 	private String imageUrl;
 
-	private String type;
+	private PostType type;
 
 	private String shopName;
 
