@@ -208,6 +208,7 @@ public class PostServiceImpl implements IPostService {
 		dtoPost.setAuthorKarmaScore(post.getAuthor().getKarmaScore());
 		dtoPost.setAuthorFirstName(post.getAuthor().getFirstname());
 		dtoPost.setAuthorLastName(post.getAuthor().getLastname());
+		dtoPost.setAuthorAvatarUrl(post.getAuthor().getAvatarUrl());
 		dtoPost.setNeighborhoodName(post.getNeighborhood().getName());
 
 		// YENİ EKLENEN SAYAÇLAR VE KONTROLLER

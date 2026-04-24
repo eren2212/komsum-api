@@ -31,6 +31,8 @@ public class DtoPost {
 
 	private String authorLastName;
 
+	private String authorAvatarUrl;
+
 	private Integer authorKarmaScore; // Adamın puanını da postun köşesinde gösterebiliriz!
 
 	private String neighborhoodName;
