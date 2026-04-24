@@ -9,4 +9,13 @@ import com.ereniridere.entity.PostLike;
 public interface PostLikeRepository extends JpaRepository<PostLike, Integer> {
 
 	Optional<PostLike> findByPostIdAndUserId(Integer postId, Integer userId);
+
+	// 🚨 YENİ EKLENEN SİHİRLİ METOTLAR 🚨
+
+	// 1. Kalp kırmızı mı olacak? (Veritabanında böyle bir satır var mı diye bakar,
+	// true/false döner)
+	boolean existsByPostIdAndUserId(Integer postId, Integer userId);
+
+	// 2. Toplam kaç kişi beğenmiş? (Veritabanındaki satırları sayıp Integer döner)
+	Integer countByPostId(Integer postId);
 }

@@ -11,6 +11,8 @@ public class DtoComment {
 
 	private String content;
 
+	private Integer authorId;
+
 	private String authorFirstName;
 
 	private String authorLastName;

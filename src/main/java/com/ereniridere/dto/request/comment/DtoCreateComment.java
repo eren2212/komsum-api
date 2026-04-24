@@ -1,4 +1,4 @@
-package com.ereniridere.dto.request.post;
+package com.ereniridere.dto.request.comment;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;

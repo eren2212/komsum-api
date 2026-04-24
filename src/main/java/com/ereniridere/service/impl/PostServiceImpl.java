@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.ereniridere.dto.request.post.DtoCreatePost;
 import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
+import com.ereniridere.dto.response.post.DtoToggleLike;
 import com.ereniridere.entity.MerchantProfile;
 import com.ereniridere.entity.Post;
 import com.ereniridere.entity.PostLike;
@@ -108,45 +109,32 @@ public class PostServiceImpl implements IPostService {
 	}
 
 	@Override
-	public Page<DtoPost> getNeighborhoodFeed(Integer userId, int pageNo, int pageSize) {
-		Optional<User> optional = userRepository.findById(userId);
+	public boolean updatePostText(Integer userId, Integer postId, DtoUpdatePost request) {
+
+		Optional<Post> optional = postRepository.findById(postId);
 
 		if (optional.isEmpty()) {
-			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Post bulunamadı"));
 		}
 
-		User dbUser = optional.get();
+		Post dbPost = optional.get();
 
-		if (dbUser.getNeighborhood() == null) {
-			throw new BaseException(new ErrorMessage(MessageType.GENERAL_EXCEPTION,
-					"Kanzi bir mahalleye kayıt olmadan duvarı göremezsin!"));
+		if (!dbPost.getAuthor().getId().equals(userId)) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Kullanıcının böyle bir postu yok"));
 		}
 
-		// 1. Sayfalama ayarlarını yap (Spring'de sayfalar 0'dan başlar, o yüzden
-		// mobilden 1 gelirse 0'a çekiyoruz)
-		Pageable pageable = PageRequest.of(pageNo, pageSize);
+		// Ekstra Güvenlik: Silinmiş bir postu güncelleyemez!
+		if (!dbPost.isActive()) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Kanzi silinmiş bir gönderiyi güncelleyemezsin!"));
+		}
 
-		// 2. Repository'den o efsane sorguyla postları çek!
-		Page<Post> postPage = postRepository.getNeighborhoodFeed(dbUser.getNeighborhood().getId(), pageable);
+		dbPost.setContent(request.getContent());
 
-		// 3. Gelen ağır Post objelerini, arayüzde kullanacağımız hafif DtoPost
-		// objelerine çevir (.map metodu burada hayat kurtarır)
-		return postPage.map(post -> {
-			DtoPost dtoPost = new DtoPost();
-			BeanUtils.copyProperties(post, dtoPost);
+		postRepository.save(dbPost);
 
-			dtoPost.setAuthorFirstName(post.getAuthor().getFirstname());
-			dtoPost.setAuthorLastName(post.getAuthor().getLastname());
-			dtoPost.setNeighborhoodName(post.getNeighborhood().getName());
-
-			// İŞTE SİHİRLİ DOKUNUŞ: Eğer post SPONSORED ise dükkan adını da DTO'ya ekle!
-			if (post.getType() == PostType.SPONSORED && post.getAuthor().getMerchantProfile() != null) {
-				dtoPost.setShopName(post.getAuthor().getMerchantProfile().getShopName());
-			}
-
-			return dtoPost;
-		});
-
+		return true;
 	}
 
 	@Override
@@ -175,15 +163,11 @@ public class PostServiceImpl implements IPostService {
 		return true;
 	}
 
+	// 3. ANA AKIŞ
 	@Override
-	public Page<DtoPost> getMyPost(Integer userId, int pageNo, int pageSize) {
-		Optional<User> optional = userRepository.findById(userId);
-
-		if (optional.isEmpty()) {
-			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
-		}
-
-		User dbUser = optional.get();
+	public Page<DtoPost> getNeighborhoodFeed(Integer userId, int pageNo, int pageSize) {
+		User dbUser = userRepository.findById(userId).orElseThrow(
+				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
 
 		if (dbUser.getNeighborhood() == null) {
 			throw new BaseException(new ErrorMessage(MessageType.GENERAL_EXCEPTION,
@@ -191,89 +175,92 @@ public class PostServiceImpl implements IPostService {
 		}
 
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
+		Page<Post> postPage = postRepository.getNeighborhoodFeedExcludingMe(dbUser.getNeighborhood().getId(), userId,
+				pageable);
 
-		Page<Post> postPage = postRepository.findByAuthorIdAndIsActiveTrueOrderByCreatedAtDesc(userId, pageable);
-		return postPage.map(post -> {
-			DtoPost dtoPost = new DtoPost();
-			BeanUtils.copyProperties(post, dtoPost);
-
-			dtoPost.setAuthorFirstName(post.getAuthor().getFirstname());
-			dtoPost.setAuthorLastName(post.getAuthor().getLastname());
-			dtoPost.setNeighborhoodName(post.getNeighborhood().getName());
-
-			// İŞTE SİHİRLİ DOKUNUŞ: Eğer post SPONSORED ise dükkan adını da DTO'ya ekle!
-			if (post.getType() == PostType.SPONSORED && post.getAuthor().getMerchantProfile() != null) {
-				dtoPost.setShopName(post.getAuthor().getMerchantProfile().getShopName());
-			}
-
-			return dtoPost;
-		});
+		// DİKKAT: Artık convertToDto metoduna 'userId' yolluyoruz ki "Ben bu postu
+		// beğendim mi?" diye bakabilsin.
+		return postPage.map(post -> convertToDto(post, userId));
 	}
 
+	// 4. KENDİ BİREYSEL POSTLARIM
 	@Override
-	public boolean updatePostText(Integer userId, Integer postId, DtoUpdatePost request) {
-
-		Optional<Post> optional = postRepository.findById(postId);
-
-		if (optional.isEmpty()) {
-			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Post bulunamadı"));
-		}
-
-		Post dbPost = optional.get();
-
-		if (!dbPost.getAuthor().getId().equals(userId)) {
-			throw new BaseException(
-					new ErrorMessage(MessageType.VALIDATION_FAILED, "Kullanıcının böyle bir postu yok"));
-		}
-
-		// 2. Ekstra Güvenlik: Silinmiş bir postu güncelleyemez!
-		if (!dbPost.isActive()) {
-			throw new BaseException(
-					new ErrorMessage(MessageType.VALIDATION_FAILED, "Kanzi silinmiş bir gönderiyi güncelleyemezsin!"));
-		}
-
-		dbPost.setContent(request.getContent());
-
-		postRepository.save(dbPost);
-
-		return true;
+	public Page<DtoPost> getMyPost(Integer userId, int pageNo, int pageSize) {
+		Pageable pageable = PageRequest.of(pageNo, pageSize);
+		Page<Post> postPage = postRepository.getMyStandardPosts(userId, pageable);
+		return postPage.map(post -> convertToDto(post, userId));
 	}
 
+	// 5. KENDİ ESNAF POSTLARIM
 	@Override
-	public String toggleLike(Integer userId, Integer postId) {
+	public Page<DtoPost> getMySponsoredPosts(Integer userId, int pageNo, int pageSize) {
+		Pageable pageable = PageRequest.of(pageNo, pageSize);
+		Page<Post> postPage = postRepository.getMySponsoredPosts(userId, pageable);
+		return postPage.map(post -> convertToDto(post, userId));
+	}
+
+	// 🚨 SENIOR DOKUNUŞU: DTO Dönüşüm metodu güncellendi 🚨
+	private DtoPost convertToDto(Post post, Integer currentUserId) {
+		DtoPost dtoPost = new DtoPost();
+		BeanUtils.copyProperties(post, dtoPost);
+
+		dtoPost.setType(post.getType());
+		dtoPost.setAuthorKarmaScore(post.getAuthor().getKarmaScore());
+		dtoPost.setAuthorFirstName(post.getAuthor().getFirstname());
+		dtoPost.setAuthorLastName(post.getAuthor().getLastname());
+		dtoPost.setNeighborhoodName(post.getNeighborhood().getName());
+
+		// YENİ EKLENEN SAYAÇLAR VE KONTROLLER
+		dtoPost.setLikeCount(post.getLikeCount() != null ? post.getLikeCount() : 0);
+		dtoPost.setCommentCount(post.getCommentCount() != null ? post.getCommentCount() : 0);
+
+		// Bu postu okuyan adam (currentUserId) daha önce beğenmiş mi?
+		boolean isLiked = postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUserId);
+		dtoPost.setLikedByMe(isLiked);
+
+		if (post.getType() == PostType.SPONSORED && post.getAuthor().getMerchantProfile() != null) {
+			dtoPost.setShopName(post.getAuthor().getMerchantProfile().getShopName());
+		}
+		return dtoPost;
+	}
+
+	// 🚨 INSTAGRAM GİBİ LİKE SİSTEMİ 🚨
+	@Override
+	public DtoToggleLike toggleLike(Integer userId, Integer postId) {
 
 		Optional<Post> optionalPost = postRepository.findById(postId);
-
 		if (optionalPost.isEmpty()) {
 			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Post bulunamadı"));
 		}
 
 		if (!optionalPost.get().isActive()) {
 			throw new BaseException(
-					new ErrorMessage(MessageType.VALIDATION_FAILED, " Silinmiş bir gönderiyi beğenemesin!"));
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Silinmiş bir gönderiyi beğenemesin!"));
 		}
 
 		Optional<PostLike> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+		boolean isLiked;
+
 		if (existingLike.isPresent()) {
-
 			postLikeRepository.delete(existingLike.get());
-			return "Dislike işlemi gerçekleştirildi";
+			isLiked = false; // Beğeniyi çektik
 		} else {
-			Optional<User> optionalUser = userRepository.findById(userId);
+			User user = userRepository.findById(userId).orElseThrow(
+					() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
 
-			if (optionalUser.isEmpty()) {
-				throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
-			}
 			PostLike newPostLike = new PostLike();
-
 			newPostLike.setPost(optionalPost.get());
-			newPostLike.setUser(optionalUser.get());
+			newPostLike.setUser(user);
 			postLikeRepository.save(newPostLike);
-
-			return "Like işlemi gerçekleştirildi";
-
+			isLiked = true; // Yeni beğendik
 		}
 
+		// Güncel beğeni sayısını veritabanından çek (PostLikeRepository'de
+		// countByPostId yoksa yazmalısın)
+		Integer newLikeCount = postLikeRepository.countByPostId(postId);
+
+		// Ekranda kalp kırmızı mı olsun ve sayı kaç yazsın? Al sana cevap:
+		return new DtoToggleLike(isLiked, newLikeCount);
 	}
 
 }

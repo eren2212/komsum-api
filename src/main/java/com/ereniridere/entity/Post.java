@@ -3,6 +3,7 @@ package com.ereniridere.entity;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Formula;
 
 import com.ereniridere.entity.enums.PostType;
 
@@ -55,6 +56,14 @@ public class Post {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "neighborhood_id", nullable = false)
 	private Neighborhood neighborhood;
+
+	// Bu postun toplam beğeni sayısı
+	@Formula("(SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = id)")
+	private Integer likeCount;
+
+	// Bu postun toplam aktif yorum sayısı
+	@Formula("(SELECT COUNT(*) FROM comments c WHERE c.post_id = id AND c.is_active = true)")
+	private Integer commentCount;
 
 	// Post atıldığı an saati otomatik olarak kaydeder, bizim elle girmemize gerek
 	// kalmaz!

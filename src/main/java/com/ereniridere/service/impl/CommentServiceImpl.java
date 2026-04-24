@@ -9,7 +9,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import com.ereniridere.dto.request.post.DtoCreateComment;
+import com.ereniridere.dto.request.comment.DtoCreateComment;
+import com.ereniridere.dto.request.comment.DtoUpdateComment;
 import com.ereniridere.dto.response.post.DtoComment;
 import com.ereniridere.entity.Comment;
 import com.ereniridere.entity.Post;
@@ -65,6 +66,7 @@ public class CommentServiceImpl implements ICommentService {
 		DtoComment dtoComment = new DtoComment();
 
 		BeanUtils.copyProperties(saveComment, dtoComment);
+		dtoComment.setAuthorId(optionalUser.get().getId());
 		dtoComment.setAuthorFirstName(optionalUser.get().getFirstname());
 		dtoComment.setAuthorLastName(optionalUser.get().getLastname());
 
@@ -79,10 +81,49 @@ public class CommentServiceImpl implements ICommentService {
 		return comments.map(comment -> {
 			DtoComment dto = new DtoComment();
 			BeanUtils.copyProperties(comment, dto);
+			dto.setAuthorId(comment.getAuthor().getId());
 			dto.setAuthorFirstName(comment.getAuthor().getFirstname());
 			dto.setAuthorLastName(comment.getAuthor().getLastname());
 			return dto;
 		});
+	}
+
+
+	@Override
+	public DtoComment updateComment(Integer userId, Integer commentId, DtoUpdateComment request) {
+
+		Optional<Comment> optionalComment = commentRepository.findById(commentId);
+
+		if (optionalComment.isEmpty()) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Yorum bulunamadı"));
+		}
+
+		Comment dbComment = optionalComment.get();
+
+		// 1. Güvenlik: Silinmiş bir yorumu güncelleyemez!
+		if (!dbComment.isActive()) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Silinmiş bir yorumu güncelleyemezsin kanzi!"));
+		}
+
+		// 2. Güvenlik: Başkasının yorumunu güncelleyemez! (En kritik nokta)
+		if (!dbComment.getAuthor().getId().equals(userId)) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Başkasının yorumunu düzenleyemezsin!"));
+		}
+
+		// Kontrolleri geçtik, yorumu güncelle
+		dbComment.setContent(request.getContent());
+		Comment updatedComment = commentRepository.save(dbComment);
+
+		// Mobilde hemen gösterebilmek için DTO'ya çevirip dön
+		DtoComment dtoComment = new DtoComment();
+		BeanUtils.copyProperties(updatedComment, dtoComment);
+		dtoComment.setAuthorId(updatedComment.getAuthor().getId());
+		dtoComment.setAuthorFirstName(updatedComment.getAuthor().getFirstname());
+		dtoComment.setAuthorLastName(updatedComment.getAuthor().getLastname());
+
+		return dtoComment;
 	}
 
 	@Override

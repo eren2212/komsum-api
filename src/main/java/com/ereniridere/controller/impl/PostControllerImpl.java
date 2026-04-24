@@ -16,6 +16,7 @@ import com.ereniridere.controller.IPostController;
 import com.ereniridere.dto.request.post.DtoCreatePost;
 import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
+import com.ereniridere.dto.response.post.DtoToggleLike;
 import com.ereniridere.entity.RootEntity;
 import com.ereniridere.entity.User;
 import com.ereniridere.exception.BaseException;
@@ -49,19 +50,6 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 		return ok(postService.createPost(userId, request));
 	}
 
-	@GetMapping(path = "/feed")
-	@Override
-	public RootEntity<Page<DtoPost>> getFeed(@RequestParam(defaultValue = "0") Integer pageNo,
-			@RequestParam(defaultValue = "10") Integer pageSize) {
-
-		// Kendi ID'mizi kasadan çekiyoruz
-		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-		Integer userId = currentUser.getId();
-
-		return ok(postService.getNeighborhoodFeed(userId, pageNo, pageSize));
-	}
-
 	@PostMapping(path = "/delete/{id}")
 	@Override
 	public RootEntity<Boolean> deletePost(@PathVariable(value = "id") Integer postId) {
@@ -73,16 +61,34 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 		return ok(postService.deletePost(userId, postId));
 	}
 
+	// ANA AKIŞ: Kendi postlarım gizli
+	@GetMapping(path = "/feed")
+	@Override
+	public RootEntity<Page<DtoPost>> getFeed(@RequestParam(defaultValue = "0") Integer pageNo,
+			@RequestParam(defaultValue = "10") Integer pageSize) {
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		Integer userId = currentUser.getId();
+		return ok(postService.getNeighborhoodFeed(userId, pageNo, pageSize));
+	}
+
+	// NORMAL PROFİLİM: Kendi bireysel postlarım
 	@GetMapping(path = "/my-posts")
 	@Override
 	public RootEntity<Page<DtoPost>> getMyPost(@RequestParam(defaultValue = "0") Integer pageNo,
 			@RequestParam(defaultValue = "10") Integer pageSize) {
-
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
 		Integer userId = currentUser.getId();
-
 		return ok(postService.getMyPost(userId, pageNo, pageSize));
+	}
+
+	// ESNAF PROFİLİM: Kendi sponsorlu postlarım (YENİ EKLENDİ - IPostController'a
+	// imzasını at!)
+	@GetMapping(path = "/my-sponsored-posts")
+	public RootEntity<Page<DtoPost>> getMySponsoredPosts(@RequestParam(defaultValue = "0") Integer pageNo,
+			@RequestParam(defaultValue = "10") Integer pageSize) {
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		Integer userId = currentUser.getId();
+		return ok(postService.getMySponsoredPosts(userId, pageNo, pageSize));
 	}
 
 	@PutMapping("/update/{id}")
@@ -98,20 +104,19 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 
 	@PostMapping("/{id}/like")
 	@Override
-	public RootEntity<String> toogleLike(@PathVariable(value = "id") Integer postId) {
+	public RootEntity<DtoToggleLike> toogleLike(@PathVariable(value = "id") Integer postId) {
 
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
 		Integer userId = currentUser.getId();
 
 		Bucket bucket = rateLimitingService.resolveBucket(userId);
 
 		if (bucket.tryConsume(1)) {
+			// Artık ok(...) içine DTO yolluyoruz!
 			return ok(postService.toggleLike(userId, postId));
 		} else {
 			throw new BaseException(new ErrorMessage(MessageType.TOO_MANY_REQUESTS, null));
 		}
-
 	}
 
 }

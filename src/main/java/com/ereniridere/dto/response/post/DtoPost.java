@@ -35,5 +35,11 @@ public class DtoPost {
 
 	private String neighborhoodName;
 
+	private Integer likeCount;
+
+	private Integer commentCount;
+
+	private boolean likedByMe;
+
 	private LocalDateTime createdAt;
 }
