@@ -42,4 +42,12 @@ public class UploadControllerImpl extends BaseController {
 		String folder = "listing-images/" + currentUser.getId();
 		return ok(supabaseStorageService.uploadImage(file, folder));
 	}
+
+	/** POST /api/upload/event-image – Etkinlik ilan fotoğrafı yükle */
+	@PostMapping("/event-image")
+	public RootEntity<String> uploadEventImage(@RequestParam("file") MultipartFile file) {
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		String folder = "events-images/" + currentUser.getId();
+		return ok(supabaseStorageService.uploadImage(file, folder));
+	}
 }

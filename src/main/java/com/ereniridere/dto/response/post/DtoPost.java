@@ -27,6 +27,8 @@ public class DtoPost {
 
 	// Yapan adamın bilgilerini dönüyoruz ki React Native'de "Eren - 5 dk önce"
 	// yazabilesin
+	private Integer authorId;
+
 	private String authorFirstName;
 
 	private String authorLastName;

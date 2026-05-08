@@ -90,8 +90,7 @@ public class MarketplaceServiceImpl implements IMarketplaceService {
 
 		// DİKKAT: Artık userId'yi de veriyoruz ki onu dışlasın!
 		Page<MarketplaceListing> listingPage = marketplaceRepository
-				.findByNeighborhoodIdAndStatusAndUserIdNotOrderByCreatedAtDesc(dbUser.getNeighborhood().getId(),
-						ListingStatus.ACTIVE, userId, pageable);
+				.getNeighborhoodVitrin(dbUser.getNeighborhood().getId(), ListingStatus.ACTIVE, userId, pageable);
 
 		return listingPage.map(listing -> {
 			DtoListing dto = new DtoListing();
@@ -109,8 +108,7 @@ public class MarketplaceServiceImpl implements IMarketplaceService {
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
 
 		// Burada mahalleye veya statüye bakmıyoruz, adamın kendi profili sonuçta!
-		Page<MarketplaceListing> myListingPage = marketplaceRepository.findByUserIdOrderByCreatedAtDesc(userId,
-				pageable);
+		Page<MarketplaceListing> myListingPage = marketplaceRepository.getMyListings(userId, pageable);
 
 		return myListingPage.map(listing -> {
 			DtoListing dto = new DtoListing();

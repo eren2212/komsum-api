@@ -3,18 +3,22 @@ package com.ereniridere.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.ereniridere.entity.MarketplaceListing;
 import com.ereniridere.entity.enums.ListingStatus;
 
 public interface MarketplaceListingRepository extends JpaRepository<MarketplaceListing, Integer> {
 
-	// 1. VİTRİN: Mahalledeki, ACTIVE olan ve BANA AİT OLMAYAN (UserIdNot) ilanlar!
-	Page<MarketplaceListing> findByNeighborhoodIdAndStatusAndUserIdNotOrderByCreatedAtDesc(Integer neighborhoodId,
-			ListingStatus status, Integer userId, // Dışlanacak olan adamın ID'si
-			Pageable pageable);
+	// 1. VİTRİN: Tek sorguda ilanı, satıcıyı ve mahalleyi çeker (HIZ KANATLANIYOR)
+	@Query("SELECT m FROM MarketplaceListing m " + "JOIN FETCH m.user u " + "JOIN FETCH m.neighborhood n "
+			+ "WHERE n.id = :neighborhoodId AND m.status = :status AND u.id != :userId " + "ORDER BY m.createdAt DESC")
+	Page<MarketplaceListing> getNeighborhoodVitrin(@Param("neighborhoodId") Integer neighborhoodId,
+			@Param("status") ListingStatus status, @Param("userId") Integer userId, Pageable pageable);
 
-	// 2. İLANLARIM: Sadece bana ait olan ilanlar (Durumu ACTIVE veya SOLD fark
-	// etmez, hepsini kendi sayfasında görsün)
-	Page<MarketplaceListing> findByUserIdOrderByCreatedAtDesc(Integer userId, Pageable pageable);
+	// 2. İLANLARIM: Kendi ilanlarımı çekerken de N+1 sorununu eziyoruz
+	@Query("SELECT m FROM MarketplaceListing m " + "JOIN FETCH m.user u " + "JOIN FETCH m.neighborhood n "
+			+ "WHERE u.id = :userId " + "ORDER BY m.createdAt DESC")
+	Page<MarketplaceListing> getMyListings(@Param("userId") Integer userId, Pageable pageable);
 }

@@ -19,6 +19,7 @@ import com.ereniridere.dto.response.post.DtoPost;
 import com.ereniridere.dto.response.post.DtoToggleLike;
 import com.ereniridere.entity.RootEntity;
 import com.ereniridere.entity.User;
+import com.ereniridere.entity.enums.PostType;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -64,11 +65,13 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 	// ANA AKIŞ: Kendi postlarım gizli
 	@GetMapping(path = "/feed")
 	@Override
-	public RootEntity<Page<DtoPost>> getFeed(@RequestParam(defaultValue = "0") Integer pageNo,
-			@RequestParam(defaultValue = "10") Integer pageSize) {
+	public RootEntity<Page<DtoPost>> getFeed(@RequestParam(required = false) PostType type,
+			@RequestParam(defaultValue = "0") Integer pageNo, @RequestParam(defaultValue = "10") Integer pageSize) {
+
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		Integer userId = currentUser.getId();
-		return ok(postService.getNeighborhoodFeed(userId, pageNo, pageSize));
+
+		return ok(postService.getNeighborhoodFeed(userId, type, pageNo, pageSize));
 	}
 
 	// NORMAL PROFİLİM: Kendi bireysel postlarım

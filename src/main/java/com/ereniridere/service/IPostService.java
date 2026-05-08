@@ -6,13 +6,15 @@ import com.ereniridere.dto.request.post.DtoCreatePost;
 import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
 import com.ereniridere.dto.response.post.DtoToggleLike;
+import com.ereniridere.entity.enums.PostType;
 
 public interface IPostService {
 
 	public DtoPost createPost(Integer userId, DtoCreatePost request);
 
 	// ANA AKIŞ: Kendi postlarım hariç mahalle duvarı
-	public Page<DtoPost> getNeighborhoodFeed(Integer userId, int pageNo, int pageSize);
+	// Parametrelere PostType type eklendi
+	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, int pageNo, int pageSize);
 
 	public boolean deletePost(Integer userId, Integer postId);
 

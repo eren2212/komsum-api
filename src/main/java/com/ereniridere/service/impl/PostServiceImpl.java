@@ -99,10 +99,13 @@ public class PostServiceImpl implements IPostService {
 		// gereksiz verileri almadan sadece bu spesifik alanları DTO'ya manuel
 		// setliyoruz.
 
+		dtoPost.setAuthorId(dbUser.getId());
 		dtoPost.setAuthorFirstName(dbUser.getFirstname());
 		dtoPost.setAuthorLastName(dbUser.getLastname());
 		dtoPost.setNeighborhoodName(dbUser.getNeighborhood().getName());
-		dtoPost.setShopName(dbUser.getMerchantProfile().getShopName());
+		if (dbUser.getMerchantProfile() != null) {
+			dtoPost.setShopName(dbUser.getMerchantProfile().getShopName());
+		}
 
 		return dtoPost;
 
@@ -163,9 +166,9 @@ public class PostServiceImpl implements IPostService {
 		return true;
 	}
 
-	// 3. ANA AKIŞ
+	// 3. ANA AKIŞ (DİNAMİK FİLTRELİ)
 	@Override
-	public Page<DtoPost> getNeighborhoodFeed(Integer userId, int pageNo, int pageSize) {
+	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, int pageNo, int pageSize) {
 		User dbUser = userRepository.findById(userId).orElseThrow(
 				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
 
@@ -175,11 +178,11 @@ public class PostServiceImpl implements IPostService {
 		}
 
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
-		Page<Post> postPage = postRepository.getNeighborhoodFeedExcludingMe(dbUser.getNeighborhood().getId(), userId,
-				pageable);
 
-		// DİKKAT: Artık convertToDto metoduna 'userId' yolluyoruz ki "Ben bu postu
-		// beğendim mi?" diye bakabilsin.
+		// DİKKAT: Artık 'type' parametresini de repository'e fırlatıyoruz
+		Page<Post> postPage = postRepository.getNeighborhoodFeedExcludingMe(dbUser.getNeighborhood().getId(), userId,
+				type, pageable);
+
 		return postPage.map(post -> convertToDto(post, userId));
 	}
 
@@ -205,6 +208,7 @@ public class PostServiceImpl implements IPostService {
 		BeanUtils.copyProperties(post, dtoPost);
 
 		dtoPost.setType(post.getType());
+		dtoPost.setAuthorId(post.getAuthor().getId());
 		dtoPost.setAuthorKarmaScore(post.getAuthor().getKarmaScore());
 		dtoPost.setAuthorFirstName(post.getAuthor().getFirstname());
 		dtoPost.setAuthorLastName(post.getAuthor().getLastname());
