@@ -11,6 +11,12 @@ public class DtoNeighbour {
 
 	private String lastname;
 
+	private String email;
+
+	private String avatarUrl;
+
+	private String bio;
+
 	private DtoNeighborhood neighborhood;
 
 	private boolean isVerifiedNeighbor;

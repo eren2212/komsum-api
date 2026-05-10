@@ -19,6 +19,7 @@ public class DtoEvent {
 	private Double longitude;
 	private String priceText;
 
+	private Integer authorId;
 	private String authorFirstName;
 	private String authorLastName;
 	private String neighborhoodName; // Örn: "Bosna Hersek Mahallesi"

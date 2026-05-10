@@ -183,6 +183,7 @@ public class EventServiceImpl implements IEventService {
 		dto.setLatitude(event.getLatitude());
 		dto.setLongitude(event.getLongitude());
 		dto.setCategory(event.getCategory());
+		dto.setAuthorId(event.getAuthor().getId());
 		dto.setAuthorFirstName(event.getAuthor().getFirstname());
 		dto.setAuthorLastName(event.getAuthor().getLastname());
 		dto.setNeighborhoodName(event.getNeighborhood().getName());
