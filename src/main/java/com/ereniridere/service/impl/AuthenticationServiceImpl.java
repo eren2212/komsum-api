@@ -21,8 +21,8 @@ import com.ereniridere.entity.User;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
-import com.ereniridere.repository.NeighborhoodRepository;
 import com.ereniridere.repository.UserRepository;
+import com.ereniridere.service.INeighborhoodService;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.security.jwt.JwtService;
 import com.ereniridere.service.IAuthenticationService;
@@ -48,7 +48,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 	private AuthenticationManager authenticationManager;
 
 	@Autowired
-	private NeighborhoodRepository neighborhoodRepository;
+	private INeighborhoodService neighborhoodService;
 
 	@Autowired
 	private IEmailService emailService;
@@ -65,10 +65,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 					new ErrorMessage(MessageType.RECORD_ALREADY_EXISTS, "Bu e-posta zaten kullanılıyor"));
 		}
 
-		var selectedNeighborhood = neighborhoodRepository.findById(request.getNeighborhoodId())
-				.orElseThrow(() -> new BaseException(
-						new ErrorMessage(MessageType.NO_RECORD_EXIST, "Böyle bir mahalle bulunamadı kanzi!")));
-		;
+		var selectedNeighborhood = neighborhoodService.getOrCreate(request.getNeighborhoodId());
 
 		var user = User.builder().firstname(request.getFirstname()).lastname(request.getLastname())
 				.email(request.getEmail()).password(passwordEncoder.encode(request.getPassword())).role(Role.USER)
