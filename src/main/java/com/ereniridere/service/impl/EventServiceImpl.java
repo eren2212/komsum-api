@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import com.ereniridere.entity.Event;
 import com.ereniridere.entity.EventBookmark;
 import com.ereniridere.entity.EventParticipant;
 import com.ereniridere.entity.User;
+import com.ereniridere.event.EventCreatedEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -39,6 +41,9 @@ public class EventServiceImpl implements IEventService {
 	@Autowired
 	private EventBookmarkRepository eventBookmarkRepository;
 
+	@Autowired
+	private ApplicationEventPublisher eventPublisher;
+
 	@Override
 	public DtoEvent createEvent(Integer userId, DtoCreateEvent request) {
 		User dbUser = userRepository.findById(userId).orElseThrow(
@@ -56,6 +61,9 @@ public class EventServiceImpl implements IEventService {
 		newEvent.setNeighborhood(dbUser.getNeighborhood());
 
 		Event savedEvent = eventRepository.save(newEvent);
+
+		// Async bildirim akışını tetikle (ilçedeki diğer kullanıcılara FCM + inbox)
+		eventPublisher.publishEvent(new EventCreatedEvent(savedEvent));
 
 		return convertToDto(savedEvent, userId);
 	}

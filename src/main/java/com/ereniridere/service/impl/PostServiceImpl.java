@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +19,7 @@ import com.ereniridere.entity.Post;
 import com.ereniridere.entity.PostLike;
 import com.ereniridere.entity.User;
 import com.ereniridere.entity.enums.PostType;
+import com.ereniridere.event.PostCreatedEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -40,6 +42,9 @@ public class PostServiceImpl implements IPostService {
 
 	@Autowired
 	private PostLikeRepository postLikeRepository;
+
+	@Autowired
+	private ApplicationEventPublisher eventPublisher;
 
 	PostServiceImpl(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -87,6 +92,9 @@ public class PostServiceImpl implements IPostService {
 
 		// 3. Veritabanına kaydet
 		Post savedPost = postRepository.save(newPost);
+
+		// 3.1 Async bildirim akışını tetikle (ilçedeki diğer kullanıcılara FCM + inbox)
+		eventPublisher.publishEvent(new PostCreatedEvent(savedPost));
 
 		// 4. Mobilde sadece göstereceğimiz verileri tutan DTO'yu hazırla
 		DtoPost dtoPost = new DtoPost();

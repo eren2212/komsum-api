@@ -80,6 +80,10 @@ public class User implements UserDetails {
 	// 4. Spam Engellemek İçin Son Mahalle Değiştirme Tarihi
 	private LocalDateTime lastNeighborhoodChange;
 
+	// 5. Firebase Cloud Messaging Token (Push bildirim hedefi). Logout'ta null'lanır.
+	@Column(name = "fcm_token", length = 500)
+	private String fcmToken;
+
 	// --- SPRING SECURITY METODLARI (Aşağısı eskisi gibi kalacak) ---
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {

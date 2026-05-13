@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +18,7 @@ import com.ereniridere.dto.response.message.DtoMessage;
 import com.ereniridere.entity.ChatRoom;
 import com.ereniridere.entity.Message;
 import com.ereniridere.entity.User;
+import com.ereniridere.event.MessageSentEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -36,6 +38,9 @@ public class ChatServiceImpl implements IChatService {
 
 	@Autowired
 	private MessageRepository messageRepository;
+
+	@Autowired
+	private ApplicationEventPublisher eventPublisher;
 
 	@Override
 	public DtoChatRoom startChat(Integer currentUserId, DtoStartChat request) {
@@ -95,6 +100,12 @@ public class ChatServiceImpl implements IChatService {
 				: request.getContent();
 		room.setLastMessageContent(preview);
 		chatRoomRepository.save(room);
+
+		// 2.1 Mesaj bildirimi async tetikle. Recipient = odadaki diğer kullanıcı.
+		Integer recipientId = room.getUser1().getId().equals(currentUserId)
+				? room.getUser2().getId()
+				: room.getUser1().getId();
+		eventPublisher.publishEvent(new MessageSentEvent(savedMessage, recipientId));
 
 		// 3. Ekrana dön
 		DtoMessage dto = new DtoMessage();

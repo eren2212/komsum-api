@@ -31,3 +31,6 @@ supabase:
   url: https://dtrqehgokyldwswyddvs.supabase.co
   key: ${SUPABASE_KEY}
   bucket: komsum-images
+
+firebase:
+  service-account-base64: ${FIREBASE_SERVICE_ACCOUNT_BASE64:}
