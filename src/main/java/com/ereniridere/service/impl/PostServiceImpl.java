@@ -51,6 +51,16 @@ public class PostServiceImpl implements IPostService {
 	}
 
 	@Override
+	public DtoPost getPostById(Integer userId, Integer postId) {
+		Post post = postRepository.findById(postId).orElseThrow(
+				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Post bulunamadı")));
+		if (!post.isActive()) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Bu gönderi silinmiş"));
+		}
+		return convertToDto(post, userId);
+	}
+
+	@Override
 	public DtoPost createPost(Integer userId, DtoCreatePost request) {
 
 		Optional<User> optional = userRepository.findById(userId);

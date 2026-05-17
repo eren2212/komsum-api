@@ -13,6 +13,8 @@ public interface IPostController {
 
 	public RootEntity<DtoPost> createPost(DtoCreatePost request);
 
+	public RootEntity<DtoPost> getPostById(Integer postId);
+
 	public RootEntity<Page<DtoPost>> getFeed(PostType type, Integer pageNo, Integer pageSize);
 
 	public RootEntity<Boolean> deletePost(Integer postId);

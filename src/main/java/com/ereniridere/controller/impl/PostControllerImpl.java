@@ -51,6 +51,13 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 		return ok(postService.createPost(userId, request));
 	}
 
+	@GetMapping(path = "/{id}")
+	@Override
+	public RootEntity<DtoPost> getPostById(@PathVariable("id") Integer postId) {
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		return ok(postService.getPostById(currentUser.getId(), postId));
+	}
+
 	@PostMapping(path = "/delete/{id}")
 	@Override
 	public RootEntity<Boolean> deletePost(@PathVariable(value = "id") Integer postId) {

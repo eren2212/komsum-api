@@ -12,6 +12,9 @@ public interface IPostService {
 
 	public DtoPost createPost(Integer userId, DtoCreatePost request);
 
+	// Tek post detayı (bildirim üzerinden açıldığında veya derin link)
+	public DtoPost getPostById(Integer userId, Integer postId);
+
 	// ANA AKIŞ: Kendi postlarım hariç mahalle duvarı
 	// Parametrelere PostType type eklendi
 	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, int pageNo, int pageSize);
