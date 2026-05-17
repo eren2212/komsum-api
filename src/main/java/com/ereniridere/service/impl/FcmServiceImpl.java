@@ -1,5 +1,6 @@
 package com.ereniridere.service.impl;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,11 +12,13 @@ import org.springframework.stereotype.Service;
 
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IFcmService;
+import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.Notification;
+import com.google.firebase.messaging.SendResponse;
 
 @Service
 public class FcmServiceImpl implements IFcmService {
@@ -70,29 +73,50 @@ public class FcmServiceImpl implements IFcmService {
 
 		log.info("FCM çoklu gönderim başlıyor — {} alıcı (title='{}')", distinctTokens.size(), title);
 
-		int success = 0;
-		int failure = 0;
 		Map<String, String> safeData = safeData(data);
 
+		// Firebase Admin SDK her token için ayrı Message oluştur — sendEach() internal
+		// olarak paralel HTTP istekleri yapar (500 token'lık chunk limiti yok).
+		// 10K kullanıcı için de uygun: thread pool'unu Firebase yönetir.
+		List<Message> messages = new ArrayList<>(distinctTokens.size());
 		for (String token : distinctTokens) {
-			Message message = Message.builder()
+			messages.add(Message.builder()
 					.setToken(token)
 					.setNotification(Notification.builder().setTitle(title).setBody(body).build())
 					.putAllData(safeData)
-					.build();
-
-			try {
-				firebaseMessaging.send(message);
-				success++;
-			} catch (FirebaseMessagingException e) {
-				failure++;
-				log.warn("FCM gönderim hatası (token={}): {} - {}",
-						maskToken(token), e.getMessagingErrorCode(), e.getMessage());
-				cleanInvalidToken(e.getMessagingErrorCode(), token);
-			}
+					.build());
 		}
 
-		log.info("FCM çoklu gönderim tamamlandı — başarılı: {}, başarısız: {}", success, failure);
+		try {
+			BatchResponse response = firebaseMessaging.sendEach(messages);
+			handleBatchResponse(response, distinctTokens);
+		} catch (FirebaseMessagingException e) {
+			log.error("FCM çoklu gönderim tamamen başarısız: {} - {}",
+					e.getMessagingErrorCode(), e.getMessage(), e);
+		}
+	}
+
+	private void handleBatchResponse(BatchResponse response, List<String> tokens) {
+		log.info("FCM çoklu gönderim tamamlandı — başarılı: {}, başarısız: {}",
+				response.getSuccessCount(), response.getFailureCount());
+
+		if (response.getFailureCount() == 0) {
+			return;
+		}
+
+		List<SendResponse> responses = response.getResponses();
+		for (int i = 0; i < responses.size(); i++) {
+			SendResponse r = responses.get(i);
+			if (r.isSuccessful()) {
+				continue;
+			}
+			FirebaseMessagingException ex = r.getException();
+			MessagingErrorCode code = ex != null ? ex.getMessagingErrorCode() : null;
+			String token = tokens.get(i);
+			log.warn("FCM gönderim hatası (token={}): {} - {}",
+					maskToken(token), code, ex != null ? ex.getMessage() : "bilinmiyor");
+			cleanInvalidToken(code, token);
+		}
 	}
 
 	private void cleanInvalidToken(MessagingErrorCode code, String token) {

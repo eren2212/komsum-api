@@ -1,12 +1,14 @@
 package com.ereniridere.event;
 
-import com.ereniridere.entity.Event;
-
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Sadece eventId taşır — listener (farklı transaction/thread) içinde
+ * fresh fetch yapılır. Entity geçirmek LAZY proxy çözüm hatası verir.
+ */
 @Getter
 @RequiredArgsConstructor
 public class EventCreatedEvent {
-	private final Event event;
+	private final Integer eventId;
 }

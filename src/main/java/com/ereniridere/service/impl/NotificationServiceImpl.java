@@ -33,7 +33,9 @@ import com.ereniridere.event.PostCreatedEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
+import com.ereniridere.repository.EventRepository;
 import com.ereniridere.repository.NotificationRepository;
+import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IFcmService;
 import com.ereniridere.service.INotificationService;
@@ -52,6 +54,12 @@ public class NotificationServiceImpl implements INotificationService {
 	private UserRepository userRepository;
 
 	@Autowired
+	private PostRepository postRepository;
+
+	@Autowired
+	private EventRepository eventRepository;
+
+	@Autowired
 	private IFcmService fcmService;
 
 	// ============================
@@ -63,12 +71,16 @@ public class NotificationServiceImpl implements INotificationService {
 	@Transactional
 	public void handlePostCreated(PostCreatedEvent event) {
 		try {
-			Post post = event.getPost();
+			// Fresh fetch — async thread kendi transaction'ında lazy proxy'ler çözülemez
+			Post post = postRepository.findById(event.getPostId()).orElse(null);
+			if (post == null) {
+				log.warn("Post bildirimi atlandı: post bulunamadı (postId={})", event.getPostId());
+				return;
+			}
 			User author = post.getAuthor();
 
 			if (author == null || author.getNeighborhood() == null) {
-				log.warn("Post bildirimi atlandı: yazar veya mahalle null (postId={})",
-						post != null ? post.getId() : null);
+				log.warn("Post bildirimi atlandı: yazar veya mahalle null (postId={})", post.getId());
 				return;
 			}
 
@@ -115,12 +127,16 @@ public class NotificationServiceImpl implements INotificationService {
 	@Transactional
 	public void handleEventCreated(EventCreatedEvent event) {
 		try {
-			Event ev = event.getEvent();
+			// Fresh fetch — async thread kendi transaction'ında lazy proxy'ler çözülemez
+			Event ev = eventRepository.findById(event.getEventId()).orElse(null);
+			if (ev == null) {
+				log.warn("Etkinlik bildirimi atlandı: etkinlik bulunamadı (eventId={})", event.getEventId());
+				return;
+			}
 			User author = ev.getAuthor();
 
 			if (author == null || author.getNeighborhood() == null) {
-				log.warn("Etkinlik bildirimi atlandı: yazar veya mahalle null (eventId={})",
-						ev != null ? ev.getId() : null);
+				log.warn("Etkinlik bildirimi atlandı: yazar veya mahalle null (eventId={})", ev.getId());
 				return;
 			}
 

@@ -94,7 +94,7 @@ public class PostServiceImpl implements IPostService {
 		Post savedPost = postRepository.save(newPost);
 
 		// 3.1 Async bildirim akışını tetikle (ilçedeki diğer kullanıcılara FCM + inbox)
-		eventPublisher.publishEvent(new PostCreatedEvent(savedPost));
+		eventPublisher.publishEvent(new PostCreatedEvent(savedPost.getId()));
 
 		// 4. Mobilde sadece göstereceğimiz verileri tutan DTO'yu hazırla
 		DtoPost dtoPost = new DtoPost();

@@ -63,7 +63,7 @@ public class EventServiceImpl implements IEventService {
 		Event savedEvent = eventRepository.save(newEvent);
 
 		// Async bildirim akışını tetikle (ilçedeki diğer kullanıcılara FCM + inbox)
-		eventPublisher.publishEvent(new EventCreatedEvent(savedEvent));
+		eventPublisher.publishEvent(new EventCreatedEvent(savedEvent.getId()));
 
 		return convertToDto(savedEvent, userId);
 	}
