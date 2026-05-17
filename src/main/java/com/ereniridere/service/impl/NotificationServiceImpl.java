@@ -67,11 +67,15 @@ public class NotificationServiceImpl implements INotificationService {
 			User author = post.getAuthor();
 
 			if (author == null || author.getNeighborhood() == null) {
+				log.warn("Post bildirimi atlandı: yazar veya mahalle null (postId={})",
+						post != null ? post.getId() : null);
 				return;
 			}
 
 			String district = author.getNeighborhood().getDistrict();
 			List<User> recipients = userRepository.findByDistrictExcludingUser(district, author.getId());
+			log.info("Post bildirimi — postId={}, district='{}', alıcı sayısı={}",
+					post.getId(), district, recipients.size());
 
 			if (recipients.isEmpty()) {
 				return;
@@ -98,6 +102,8 @@ public class NotificationServiceImpl implements INotificationService {
 			}
 
 			notificationRepository.saveAll(notifications);
+			log.info("Post bildirimi — DB'ye {} kayıt yazıldı, {} FCM token'a gönderim deneniyor",
+					notifications.size(), tokens.size());
 			fcmService.sendToTokens(tokens, title, body, data);
 		} catch (Exception e) {
 			log.error("Post bildirimi gönderilemedi", e);
@@ -113,11 +119,15 @@ public class NotificationServiceImpl implements INotificationService {
 			User author = ev.getAuthor();
 
 			if (author == null || author.getNeighborhood() == null) {
+				log.warn("Etkinlik bildirimi atlandı: yazar veya mahalle null (eventId={})",
+						ev != null ? ev.getId() : null);
 				return;
 			}
 
 			String district = author.getNeighborhood().getDistrict();
 			List<User> recipients = userRepository.findByDistrictExcludingUser(district, author.getId());
+			log.info("Etkinlik bildirimi — eventId={}, district='{}', alıcı sayısı={}",
+					ev.getId(), district, recipients.size());
 
 			if (recipients.isEmpty()) {
 				return;
@@ -144,6 +154,8 @@ public class NotificationServiceImpl implements INotificationService {
 			}
 
 			notificationRepository.saveAll(notifications);
+			log.info("Etkinlik bildirimi — DB'ye {} kayıt yazıldı, {} FCM token'a gönderim deneniyor",
+					notifications.size(), tokens.size());
 			fcmService.sendToTokens(tokens, title, body, data);
 		} catch (Exception e) {
 			log.error("Etkinlik bildirimi gönderilemedi", e);

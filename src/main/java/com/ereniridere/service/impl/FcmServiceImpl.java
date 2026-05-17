@@ -1,6 +1,5 @@
 package com.ereniridere.service.impl;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,22 +11,16 @@ import org.springframework.stereotype.Service;
 
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IFcmService;
-import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.MessagingErrorCode;
-import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
-import com.google.firebase.messaging.SendResponse;
 
 @Service
 public class FcmServiceImpl implements IFcmService {
 
 	private static final Logger log = LoggerFactory.getLogger(FcmServiceImpl.class);
-
-	// FCM tek istekte en fazla 500 token kabul ediyor.
-	private static final int FCM_MULTICAST_LIMIT = 500;
 
 	@Autowired(required = false)
 	private FirebaseMessaging firebaseMessaging;
@@ -62,10 +55,11 @@ public class FcmServiceImpl implements IFcmService {
 	@Override
 	public void sendToTokens(List<String> tokens, String title, String body, Map<String, String> data) {
 		if (firebaseMessaging == null) {
-			log.warn("FirebaseMessaging hazır değil, multicast gönderilemedi.");
+			log.warn("FirebaseMessaging hazır değil, çoklu gönderim yapılamadı.");
 			return;
 		}
 		if (tokens == null || tokens.isEmpty()) {
+			log.info("FCM gönderilecek token yok, atlanıyor.");
 			return;
 		}
 
@@ -74,23 +68,31 @@ public class FcmServiceImpl implements IFcmService {
 				.distinct()
 				.toList();
 
-		for (int i = 0; i < distinctTokens.size(); i += FCM_MULTICAST_LIMIT) {
-			List<String> chunk = distinctTokens.subList(i,
-					Math.min(i + FCM_MULTICAST_LIMIT, distinctTokens.size()));
+		log.info("FCM çoklu gönderim başlıyor — {} alıcı (title='{}')", distinctTokens.size(), title);
 
-			MulticastMessage multicast = MulticastMessage.builder()
-					.addAllTokens(chunk)
+		int success = 0;
+		int failure = 0;
+		Map<String, String> safeData = safeData(data);
+
+		for (String token : distinctTokens) {
+			Message message = Message.builder()
+					.setToken(token)
 					.setNotification(Notification.builder().setTitle(title).setBody(body).build())
-					.putAllData(safeData(data))
+					.putAllData(safeData)
 					.build();
 
 			try {
-				BatchResponse response = firebaseMessaging.sendEachForMulticast(multicast);
-				handleBatchResponse(response, chunk);
+				firebaseMessaging.send(message);
+				success++;
 			} catch (FirebaseMessagingException e) {
-				log.error("FCM multicast tamamen başarısız oldu: {}", e.getMessagingErrorCode(), e);
+				failure++;
+				log.warn("FCM gönderim hatası (token={}): {} - {}",
+						maskToken(token), e.getMessagingErrorCode(), e.getMessage());
+				cleanInvalidToken(e.getMessagingErrorCode(), token);
 			}
 		}
+
+		log.info("FCM çoklu gönderim tamamlandı — başarılı: {}, başarısız: {}", success, failure);
 	}
 
 	private void cleanInvalidToken(MessagingErrorCode code, String token) {
@@ -98,39 +100,6 @@ public class FcmServiceImpl implements IFcmService {
 			userRepository.clearFcmToken(token);
 			log.info("Geçersiz FCM token temizlendi: {}", maskToken(token));
 		}
-	}
-
-	private void handleBatchResponse(BatchResponse response, List<String> tokens) {
-		if (response.getFailureCount() == 0) {
-			return;
-		}
-
-		List<SendResponse> responses = response.getResponses();
-		List<String> invalidTokens = new ArrayList<>();
-
-		for (int i = 0; i < responses.size(); i++) {
-			SendResponse r = responses.get(i);
-			if (r.isSuccessful()) {
-				continue;
-			}
-			FirebaseMessagingException ex = r.getException();
-			if (ex == null) {
-				continue;
-			}
-			MessagingErrorCode code = ex.getMessagingErrorCode();
-			if (code == MessagingErrorCode.UNREGISTERED || code == MessagingErrorCode.INVALID_ARGUMENT) {
-				invalidTokens.add(tokens.get(i));
-			} else {
-				log.warn("FCM gönderim hatası (token={}): {}", maskToken(tokens.get(i)), code);
-			}
-		}
-
-		invalidTokens.forEach(this::clearInvalidTokenTx);
-	}
-
-	private void clearInvalidTokenTx(String token) {
-		userRepository.clearFcmToken(token);
-		log.info("Geçersiz FCM token temizlendi (batch): {}", maskToken(token));
 	}
 
 	private Map<String, String> safeData(Map<String, String> data) {
