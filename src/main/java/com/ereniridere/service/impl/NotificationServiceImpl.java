@@ -17,6 +17,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ereniridere.dto.request.notification.DtoNotificationPreferences;
 import com.ereniridere.dto.response.notification.DtoNotification;
 import com.ereniridere.entity.ChatRoom;
 import com.ereniridere.entity.Event;
@@ -86,6 +87,9 @@ public class NotificationServiceImpl implements INotificationService {
 			List<String> tokens = new ArrayList<>();
 
 			for (User r : recipients) {
+				if (Boolean.FALSE.equals(r.getPostNotificationsEnabled())) {
+					continue;
+				}
 				notifications.add(buildNotification(r, author, NotificationType.NEW_POST, title, body,
 						RelatedEntityType.POST, post.getId().longValue()));
 				if (r.getFcmToken() != null && !r.getFcmToken().isBlank()) {
@@ -129,6 +133,9 @@ public class NotificationServiceImpl implements INotificationService {
 			List<String> tokens = new ArrayList<>();
 
 			for (User r : recipients) {
+				if (Boolean.FALSE.equals(r.getEventNotificationsEnabled())) {
+					continue;
+				}
 				notifications.add(buildNotification(r, author, NotificationType.NEW_EVENT, title, body,
 						RelatedEntityType.EVENT, ev.getId().longValue()));
 				if (r.getFcmToken() != null && !r.getFcmToken().isBlank()) {
@@ -156,6 +163,9 @@ public class NotificationServiceImpl implements INotificationService {
 				return;
 			}
 			User recipient = recipientOpt.get();
+			if (Boolean.FALSE.equals(recipient.getMessageNotificationsEnabled())) {
+				return;
+			}
 			User sender = message.getSender();
 			ChatRoom room = message.getChatRoom();
 
@@ -224,6 +234,29 @@ public class NotificationServiceImpl implements INotificationService {
 				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
 		user.setFcmToken(null);
 		userRepository.save(user);
+	}
+
+	@Override
+	public DtoNotificationPreferences getPreferences(Integer userId) {
+		User user = userRepository.findById(userId).orElseThrow(
+				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
+		// NULL = "açık" (geriye dönük uyumluluk için)
+		return new DtoNotificationPreferences(
+				!Boolean.FALSE.equals(user.getPostNotificationsEnabled()),
+				!Boolean.FALSE.equals(user.getEventNotificationsEnabled()),
+				!Boolean.FALSE.equals(user.getMessageNotificationsEnabled()));
+	}
+
+	@Override
+	@Transactional
+	public DtoNotificationPreferences updatePreferences(Integer userId, DtoNotificationPreferences prefs) {
+		User user = userRepository.findById(userId).orElseThrow(
+				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
+		user.setPostNotificationsEnabled(prefs.getPostEnabled());
+		user.setEventNotificationsEnabled(prefs.getEventEnabled());
+		user.setMessageNotificationsEnabled(prefs.getMessageEnabled());
+		userRepository.save(user);
+		return prefs;
 	}
 
 	// ============================

@@ -2,6 +2,7 @@ package com.ereniridere.service;
 
 import org.springframework.data.domain.Page;
 
+import com.ereniridere.dto.request.notification.DtoNotificationPreferences;
 import com.ereniridere.dto.response.notification.DtoNotification;
 
 public interface INotificationService {
@@ -17,4 +18,8 @@ public interface INotificationService {
 	void saveFcmToken(Integer userId, String token);
 
 	void clearFcmToken(Integer userId);
+
+	DtoNotificationPreferences getPreferences(Integer userId);
+
+	DtoNotificationPreferences updatePreferences(Integer userId, DtoNotificationPreferences prefs);
 }

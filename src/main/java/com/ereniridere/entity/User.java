@@ -84,6 +84,20 @@ public class User implements UserDetails {
 	@Column(name = "fcm_token", length = 500)
 	private String fcmToken;
 
+	// 6. Bildirim tercihleri — null = "açık" (geriye dönük uyumluluk için
+	// nullable bırakıyoruz; mevcut satırlar otomatik açık sayılır)
+	@Builder.Default
+	@Column(name = "post_notifications_enabled")
+	private Boolean postNotificationsEnabled = true;
+
+	@Builder.Default
+	@Column(name = "event_notifications_enabled")
+	private Boolean eventNotificationsEnabled = true;
+
+	@Builder.Default
+	@Column(name = "message_notifications_enabled")
+	private Boolean messageNotificationsEnabled = true;
+
 	// --- SPRING SECURITY METODLARI (Aşağısı eskisi gibi kalacak) ---
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {

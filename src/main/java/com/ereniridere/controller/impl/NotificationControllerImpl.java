@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ereniridere.controller.INotificationController;
+import com.ereniridere.dto.request.notification.DtoNotificationPreferences;
 import com.ereniridere.dto.request.notification.DtoSaveFcmToken;
 import com.ereniridere.dto.response.notification.DtoNotification;
 import com.ereniridere.entity.RootEntity;
@@ -78,6 +79,20 @@ public class NotificationControllerImpl extends BaseController implements INotif
 		Integer userId = currentUserId();
 		notificationService.clearFcmToken(userId);
 		return ok(null);
+	}
+
+	@GetMapping("/preferences")
+	@Override
+	public RootEntity<DtoNotificationPreferences> getPreferences() {
+		Integer userId = currentUserId();
+		return ok(notificationService.getPreferences(userId));
+	}
+
+	@PutMapping("/preferences")
+	@Override
+	public RootEntity<DtoNotificationPreferences> updatePreferences(@Valid @RequestBody DtoNotificationPreferences prefs) {
+		Integer userId = currentUserId();
+		return ok(notificationService.updatePreferences(userId, prefs));
 	}
 
 	private Integer currentUserId() {
