@@ -1,11 +1,17 @@
 package com.ereniridere.service.impl;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +34,7 @@ import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.service.IPostService;
+import com.ereniridere.util.GeoUtils;
 
 @Service
 public class PostServiceImpl implements IPostService {
@@ -186,7 +193,8 @@ public class PostServiceImpl implements IPostService {
 
 	// 3. ANA AKIŞ (DİNAMİK FİLTRELİ)
 	@Override
-	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, int pageNo, int pageSize) {
+	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, Double lat, Double lng, Integer radius,
+			int pageNo, int pageSize) {
 		User dbUser = userRepository.findById(userId).orElseThrow(
 				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
 
@@ -197,11 +205,42 @@ public class PostServiceImpl implements IPostService {
 
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
 
-		// DİKKAT: Artık 'type' parametresini de repository'e fırlatıyoruz
+		// 🚨 SPONSORED + konum varsa: yakınlık (radius) bazlı esnaf akışı (iki-adımlı)
+		if (type == PostType.SPONSORED && lat != null && lng != null) {
+			return getSponsoredNearbyFeed(userId, lat, lng, radius, pageable);
+		}
+
+		// Aksi halde mevcut mahalle bazlı davranış (DEĞİŞMEDİ)
 		Page<Post> postPage = postRepository.getNeighborhoodFeedExcludingMe(dbUser.getNeighborhood().getId(), userId,
 				type, pageable);
 
 		return postPage.map(post -> convertToDto(post, userId));
+	}
+
+	// 🚨 SPONSORED YAKINLIK AKIŞI: native ID sorgusu + JOIN FETCH hidrasyonu (N+1 yok)
+	private Page<DtoPost> getSponsoredNearbyFeed(Integer userId, Double lat, Double lng, Integer radius,
+			Pageable pageable) {
+
+		int radiusMeters = (radius == null || radius <= 0) ? 5000 : radius;
+
+		// ADIM 1: Spatial index ile radius içindeki sponsorlu post ID sayfası (en yakın önce)
+		Page<Integer> idPage = postRepository.findSponsoredNearbyPostIds(userId, lat, lng, radiusMeters, pageable);
+
+		if (idPage.isEmpty()) {
+			return new PageImpl<>(List.of(), pageable, idPage.getTotalElements());
+		}
+
+		List<Integer> ids = idPage.getContent();
+
+		// ADIM 2: ID'lerden JOIN FETCH ile hidrate et
+		Map<Integer, Post> byId = postRepository.findAllByIdInWithFetch(ids).stream()
+				.collect(Collectors.toMap(Post::getId, Function.identity()));
+
+		// Native sorgunun mesafe sıralamasını koruyarak DTO listesi üret
+		List<DtoPost> dtos = ids.stream().map(byId::get).filter(Objects::nonNull)
+				.map(post -> convertToDto(post, userId)).collect(Collectors.toList());
+
+		return new PageImpl<>(dtos, pageable, idPage.getTotalElements());
 	}
 
 	// 4. KENDİ BİREYSEL POSTLARIM
@@ -242,7 +281,11 @@ public class PostServiceImpl implements IPostService {
 		dtoPost.setLikedByMe(isLiked);
 
 		if (post.getType() == PostType.SPONSORED && post.getAuthor().getMerchantProfile() != null) {
-			dtoPost.setShopName(post.getAuthor().getMerchantProfile().getShopName());
+			MerchantProfile esnaf = post.getAuthor().getMerchantProfile();
+			dtoPost.setShopName(esnaf.getShopName());
+			// SPONSORED postta esnafın dükkan konumunu (harita pini) DTO'ya geçir
+			dtoPost.setLatitude(GeoUtils.getLatitude(esnaf.getGeoLocation()));
+			dtoPost.setLongitude(GeoUtils.getLongitude(esnaf.getGeoLocation()));
 		}
 		return dtoPost;
 	}

@@ -1,0 +1,349 @@
+{
+  "info": {
+    "name": "Komsum - PostGIS Spatial Test",
+    "_postman_id": "b1e7c0a2-5f3a-4d2e-9c11-komsumspatial01",
+    "description": "Komsum spatial migration ucu-uca test akisi.\n\nCALISTIRMA SIRASI (yukaridan asagiya):\n1) Lokasyon klasoru -> neighborhoodId yakalanir (public, token gerekmez)\n2) Auth klasoru -> User A (esnaf) ve User B (komsu) kayit + login (tokenlar otomatik kaydedilir)\n3) Event Spatial -> etkinlik olustur + /nearby test\n4) Merchant + Sponsored -> dukkan olustur, MANUEL SQL ile onayla, sponsored post at, User B ile yakinlik feed'i test et\n\n!!! KRITIK: Sponsored feed KENDI postlarini haric tutar (p.user_id <> :userId). Bu yuzden iki kullanici var: User A postu atar, User B gorur.\n\n!!! ESNAF ONAYI (manuel): Esnaf olusturduktan sonra Supabase SQL editorunde su komutu calistir, yoksa SPONSORED post atilamaz:\n   UPDATE merchant_profiles SET is_verified = true WHERE shop_name = 'Kasap Test A';\n\nDegiskenler (Collection variables): baseUrl, neighborhoodId, shopLat, shopLng vb. Gerekirse duzenle.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "tokenA", "value": "", "type": "string" },
+    { "key": "tokenB", "value": "", "type": "string" },
+    { "key": "emailA", "value": "", "type": "string" },
+    { "key": "emailB", "value": "", "type": "string" },
+    { "key": "cityId", "value": "", "type": "string" },
+    { "key": "districtId", "value": "", "type": "string" },
+    { "key": "neighborhoodId", "value": "", "type": "string" },
+    { "key": "eventId", "value": "", "type": "string" },
+    { "key": "shopLat", "value": "41.0082", "type": "string" },
+    { "key": "shopLng", "value": "28.9784", "type": "string" },
+    { "key": "farLat", "value": "39.9208", "type": "string" },
+    { "key": "farLng", "value": "32.8541", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1) Lokasyon (neighborhoodId bul)",
+      "description": "Public endpointler (token gerekmez). Sirayla calistir: Cities -> Districts -> Neighborhoods. Son adim neighborhoodId'yi otomatik kaydeder.",
+      "item": [
+        {
+          "name": "Get Cities -> cityId",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const d = pm.response.json().data;",
+              "if (Array.isArray(d) && d.length) {",
+              "  pm.collectionVariables.set('cityId', d[0].id);",
+              "  console.log('cityId =', d[0].id, d[0].name);",
+              "}",
+              "pm.test('result true', () => pm.expect(pm.response.json().result).to.be.true);"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/locations/cities", "host": ["{{baseUrl}}"], "path": ["api","locations","cities"] }
+          }
+        },
+        {
+          "name": "Get Districts -> districtId",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const d = pm.response.json().data;",
+              "if (Array.isArray(d) && d.length) {",
+              "  pm.collectionVariables.set('districtId', d[0].id);",
+              "  console.log('districtId =', d[0].id, d[0].name);",
+              "}"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/locations/districts?cityId={{cityId}}", "host": ["{{baseUrl}}"], "path": ["api","locations","districts"], "query": [{ "key": "cityId", "value": "{{cityId}}" }] }
+          }
+        },
+        {
+          "name": "Get Neighborhoods -> neighborhoodId",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const d = pm.response.json().data;",
+              "if (Array.isArray(d) && d.length) {",
+              "  pm.collectionVariables.set('neighborhoodId', d[0].id);",
+              "  console.log('neighborhoodId =', d[0].id, d[0].name);",
+              "}"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/locations/neighborhoods?districtId={{districtId}}", "host": ["{{baseUrl}}"], "path": ["api","locations","neighborhoods"], "query": [{ "key": "districtId", "value": "{{districtId}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2) Auth (User A esnaf + User B komsu)",
+      "description": "Once Lokasyon klasorunu calistirip neighborhoodId'yi yakaladigindan emin ol. Her register dinamik benzersiz email uretir; login ayni emaili kullanir.",
+      "item": [
+        {
+          "name": "Register User A (esnaf)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.collectionVariables.set('emailA', 'esnaf_' + Date.now() + '@komsumtest.com');"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "if (r && r.data && r.data.access_token) pm.collectionVariables.set('tokenA', r.data.access_token);",
+              "console.log('emailA =', pm.collectionVariables.get('emailA'));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"firstname\": \"EsnafA\",\n  \"lastname\": \"Test\",\n  \"email\": \"{{emailA}}\",\n  \"password\": \"Test1234\",\n  \"neighborhoodId\": {{neighborhoodId}}\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api","auth","register"] }
+          }
+        },
+        {
+          "name": "Login User A -> tokenA",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "if (r && r.data && r.data.access_token) pm.collectionVariables.set('tokenA', r.data.access_token);",
+              "pm.test('tokenA alindi', () => pm.expect(pm.collectionVariables.get('tokenA')).to.be.a('string').and.not.empty);"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{emailA}}\",\n  \"password\": \"Test1234\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] }
+          }
+        },
+        {
+          "name": "Register User B (komsu)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.collectionVariables.set('emailB', 'komsu_' + Date.now() + '@komsumtest.com');"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "if (r && r.data && r.data.access_token) pm.collectionVariables.set('tokenB', r.data.access_token);",
+              "console.log('emailB =', pm.collectionVariables.get('emailB'));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"firstname\": \"KomsuB\",\n  \"lastname\": \"Test\",\n  \"email\": \"{{emailB}}\",\n  \"password\": \"Test1234\",\n  \"neighborhoodId\": {{neighborhoodId}}\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api","auth","register"] }
+          }
+        },
+        {
+          "name": "Login User B -> tokenB",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "if (r && r.data && r.data.access_token) pm.collectionVariables.set('tokenB', r.data.access_token);",
+              "pm.test('tokenB alindi', () => pm.expect(pm.collectionVariables.get('tokenB')).to.be.a('string').and.not.empty);"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"Test1234\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3) Event Spatial",
+      "description": "User A ile etkinlik olustur (lat/lng = shopLat/shopLng), sonra /nearby ile yakinlik testi yap.",
+      "item": [
+        {
+          "name": "Create Event (User A) -> eventId",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "if (r && r.data && r.data.id) pm.collectionVariables.set('eventId', r.data.id);",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('lat/lng geri dondu', () => { pm.expect(r.data.latitude).to.be.a('number'); pm.expect(r.data.longitude).to.be.a('number'); });"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Test Etkinlik A\",\n  \"description\": \"Postman spatial test etkinligi\",\n  \"category\": \"SPORTS\",\n  \"eventDate\": \"2026-06-15T19:30:00\",\n  \"location\": \"Test Parki\",\n  \"latitude\": {{shopLat}},\n  \"longitude\": {{shopLng}},\n  \"priceText\": \"Ucretsiz\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/events/create", "host": ["{{baseUrl}}"], "path": ["api","events","create"] }
+          }
+        },
+        {
+          "name": "Nearby Events (yakin - coords var)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('en az 1 etkinlik geldi', () => pm.expect(r.data.content.length).to.be.above(0));"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/nearby?lat={{shopLat}}&lng={{shopLng}}&radius=3000&pageNo=0&pageSize=10", "host": ["{{baseUrl}}"], "path": ["api","events","nearby"], "query": [
+              { "key": "lat", "value": "{{shopLat}}" },
+              { "key": "lng", "value": "{{shopLng}}" },
+              { "key": "radius", "value": "3000" },
+              { "key": "pageNo", "value": "0" },
+              { "key": "pageSize", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Nearby Events (uzak - bos donmeli)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "console.log('uzak nokta sonuc sayisi =', r.data.content.length);"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/nearby?lat={{farLat}}&lng={{farLng}}&radius=3000", "host": ["{{baseUrl}}"], "path": ["api","events","nearby"], "query": [
+              { "key": "lat", "value": "{{farLat}}" },
+              { "key": "lng", "value": "{{farLng}}" },
+              { "key": "radius", "value": "3000" }
+            ] }
+          }
+        },
+        {
+          "name": "Nearby Events (coords YOK - ilce fallback)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "console.log('fallback (ilce) sonuc sayisi =', r.data.content.length);"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/events/nearby?pageNo=0&pageSize=10", "host": ["{{baseUrl}}"], "path": ["api","events","nearby"], "query": [
+              { "key": "pageNo", "value": "0" },
+              { "key": "pageSize", "value": "10" }
+            ] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4) Merchant + Sponsored Feed",
+      "description": "AKIS: (1) User A dukkan olustur -> (2) MANUEL SQL ile onayla -> (3) User A SPONSORED post at -> (4) User B yakinlik feed'inde gorsun.\n\nMANUEL ONAY SQL (Supabase):\n  UPDATE merchant_profiles SET is_verified = true WHERE shop_name = 'Kasap Test A';",
+      "item": [
+        {
+          "name": "Create Merchant (User A) [lat/lng]",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('konum geri dondu', () => { pm.expect(r.data.latitude).to.be.a('number'); });",
+              "console.log('>>> SIMDI SUPABASE SQL CALISTIR: UPDATE merchant_profiles SET is_verified = true WHERE shop_name = \\'Kasap Test A\\';');"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"shopName\": \"Kasap Test A\",\n  \"category\": \"Gida\",\n  \"phone\": \"05551112233\",\n  \"address\": \"Test Mah. Test Cad. No:1\",\n  \"description\": \"Postman test dukkani\",\n  \"latitude\": {{shopLat}},\n  \"longitude\": {{shopLng}}\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/merchants/create", "host": ["{{baseUrl}}"], "path": ["api","merchants","create"] }
+          }
+        },
+        {
+          "name": "Create SPONSORED Post (User A) [ONCE ONAYLA!]",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "if (r.result !== true) { console.log('HATA:', r.errormessage, '-> Dukkan onayli mi? Verify SQL calistirdin mi?'); }",
+              "pm.test('result true (esnaf onayli olmali)', () => pm.expect(r.result).to.be.true);"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Taze kiyma geldi komsular! (Sponsored test)\",\n  \"type\": \"SPONSORED\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/posts/create", "host": ["{{baseUrl}}"], "path": ["api","posts","create"] }
+          }
+        },
+        {
+          "name": "Sponsored Feed YAKIN (User B) -> A'nin postu gelmeli",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('yakinda sponsored post var', () => pm.expect(r.data.content.length).to.be.above(0));",
+              "if (r.data.content.length) { const p = r.data.content[0]; console.log('shopName =', p.shopName, '| lat =', p.latitude, '| lng =', p.longitude); }"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/posts/feed?type=SPONSORED&lat={{shopLat}}&lng={{shopLng}}&radius=5000&pageNo=0&pageSize=10", "host": ["{{baseUrl}}"], "path": ["api","posts","feed"], "query": [
+              { "key": "type", "value": "SPONSORED" },
+              { "key": "lat", "value": "{{shopLat}}" },
+              { "key": "lng", "value": "{{shopLng}}" },
+              { "key": "radius", "value": "5000" },
+              { "key": "pageNo", "value": "0" },
+              { "key": "pageSize", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Sponsored Feed UZAK (User B) -> bos donmeli",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "console.log('uzak sponsored sonuc sayisi =', r.data.content.length);"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/posts/feed?type=SPONSORED&lat={{farLat}}&lng={{farLng}}&radius=5000", "host": ["{{baseUrl}}"], "path": ["api","posts","feed"], "query": [
+              { "key": "type", "value": "SPONSORED" },
+              { "key": "lat", "value": "{{farLat}}" },
+              { "key": "lng", "value": "{{farLng}}" },
+              { "key": "radius", "value": "5000" }
+            ] }
+          }
+        },
+        {
+          "name": "Standart Feed (User B) -> mahalle bazli (degismedi)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "console.log('mahalle feed sonuc sayisi =', r.data.content.length);"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/posts/feed?pageNo=0&pageSize=10", "host": ["{{baseUrl}}"], "path": ["api","posts","feed"], "query": [
+              { "key": "pageNo", "value": "0" },
+              { "key": "pageSize", "value": "10" }
+            ] }
+          }
+        }
+      ]
+    }
+  ]
+}

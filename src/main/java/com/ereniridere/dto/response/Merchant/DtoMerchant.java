@@ -21,4 +21,9 @@ public class DtoMerchant {
 	private String ownerFirstName;
 
 	private String ownerLastName;
+
+	// Dükkanın harita konumu (mobilde pin göstermek için). Konum girilmemişse null.
+	private Double latitude;
+
+	private Double longitude;
 }

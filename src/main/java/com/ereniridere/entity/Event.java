@@ -3,6 +3,7 @@ package com.ereniridere.entity;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.Formula;
+import org.locationtech.jts.geom.Point;
 
 import com.ereniridere.entity.enums.EventCategory;
 
@@ -48,14 +49,15 @@ public class Event {
 	private LocalDateTime eventDate;
 
 	// Etkinliğin yapılacağı yer (Örn: "Japon Parkı", "Bosna Hersek Halı Saha")
+	// DİKKAT: Bu mekânın METİN adı; aşağıdaki geoLocation ise harita koordinatı.
 	@Column(nullable = false)
 	private String location;
 
-	@Column(name = "latitude")
-	private Double latitude; // Enlem
-
-	@Column(name = "longitude")
-	private Double longitude; // Boylam
+	// PostGIS spatial konum (SRID 4326). Eski Double latitude/longitude alanlarının
+	// yerini aldı. İsim çakışmasını önlemek için 'location' (mekân adı) ile değil
+	// 'geoLocation' adıyla tutuluyor. lat/lng dönüşümleri GeoUtils üzerinden yapılır.
+	@Column(name = "geo_location", columnDefinition = "geometry(Point, 4326)")
+	private Point geoLocation;
 
 	// Eğer ücretliyse fiyatı, null ise "Ücretsiz" kabul edebiliriz
 	@Column(name = "price_text")

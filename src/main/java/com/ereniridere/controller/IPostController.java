@@ -15,7 +15,8 @@ public interface IPostController {
 
 	public RootEntity<DtoPost> getPostById(Integer postId);
 
-	public RootEntity<Page<DtoPost>> getFeed(PostType type, Integer pageNo, Integer pageSize);
+	public RootEntity<Page<DtoPost>> getFeed(PostType type, Double lat, Double lng, Integer radius, Integer pageNo,
+			Integer pageSize);
 
 	public RootEntity<Boolean> deletePost(Integer postId);
 

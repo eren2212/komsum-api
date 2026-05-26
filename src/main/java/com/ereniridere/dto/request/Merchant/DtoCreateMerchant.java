@@ -1,6 +1,7 @@
 package com.ereniridere.dto.request.Merchant;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
@@ -19,4 +20,12 @@ public class DtoCreateMerchant {
 	private String address;
 
 	private String description; // Zorunlu değil
+
+	// Dükkanın harita konumu (SPONSORED post radius filtresi bunun üzerinden çalışır).
+	// Esnaf dükkanını haritadan işaretlediği için zorunlu.
+	@NotNull(message = "Dükkanını haritadan işaretlemelisin!")
+	private Double latitude;
+
+	@NotNull(message = "Dükkanını haritadan işaretlemelisin!")
+	private Double longitude;
 }

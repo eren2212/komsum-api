@@ -34,6 +34,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
+
+		<!-- PostGIS spatial desteği: JTS Point <-> geometry(Point,4326) eşlemesi ve
+		     ST_DWithin gibi spatial fonksiyonlar. Versiyon Spring Boot BOM'undan
+		     (Hibernate ORM ile aynı sürüm) yönetilir. jts-core transitive gelir. -->
+		<dependency>
+			<groupId>org.hibernate.orm</groupId>
+			<artifactId>hibernate-spatial</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>

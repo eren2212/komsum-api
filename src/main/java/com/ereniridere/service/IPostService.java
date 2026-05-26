@@ -15,9 +15,11 @@ public interface IPostService {
 	// Tek post detayı (bildirim üzerinden açıldığında veya derin link)
 	public DtoPost getPostById(Integer userId, Integer postId);
 
-	// ANA AKIŞ: Kendi postlarım hariç mahalle duvarı
-	// Parametrelere PostType type eklendi
-	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, int pageNo, int pageSize);
+	// ANA AKIŞ: Kendi postlarım hariç mahalle duvarı.
+	// type == SPONSORED && lat/lng verilmişse radius (metre) bazlı yakınlık filtresi,
+	// aksi halde mevcut mahalle bazlı davranış uygulanır.
+	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, Double lat, Double lng, Integer radius,
+			int pageNo, int pageSize);
 
 	public boolean deletePost(Integer userId, Integer postId);
 

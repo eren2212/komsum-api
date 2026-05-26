@@ -69,16 +69,20 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 		return ok(postService.deletePost(userId, postId));
 	}
 
-	// ANA AKIŞ: Kendi postlarım gizli
+	// ANA AKIŞ: Kendi postlarım gizli.
+	// type=SPONSORED + lat/lng verilirse radius (metre) bazlı yakınlık filtresi uygulanır;
+	// aksi halde mevcut mahalle bazlı davranış korunur (lat/lng/radius opsiyonel = geriye uyumlu).
 	@GetMapping(path = "/feed")
 	@Override
 	public RootEntity<Page<DtoPost>> getFeed(@RequestParam(required = false) PostType type,
-			@RequestParam(defaultValue = "0") Integer pageNo, @RequestParam(defaultValue = "10") Integer pageSize) {
+			@RequestParam(required = false) Double lat, @RequestParam(required = false) Double lng,
+			@RequestParam(defaultValue = "5000") Integer radius, @RequestParam(defaultValue = "0") Integer pageNo,
+			@RequestParam(defaultValue = "10") Integer pageSize) {
 
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		Integer userId = currentUser.getId();
 
-		return ok(postService.getNeighborhoodFeed(userId, type, pageNo, pageSize));
+		return ok(postService.getNeighborhoodFeed(userId, type, lat, lng, radius, pageNo, pageSize));
 	}
 
 	// NORMAL PROFİLİM: Kendi bireysel postlarım

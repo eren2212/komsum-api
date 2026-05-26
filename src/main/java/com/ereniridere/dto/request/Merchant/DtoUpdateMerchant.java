@@ -14,4 +14,9 @@ public class DtoUpdateMerchant {
 	// Ekranda "Kadıköy, İstanbul" yazıyor. Esnaf dükkanını taşırsa mahalleyi de
 	// güncelleriz.
 	private Integer neighborhoodId;
+
+	// Dükkanını taşıyan esnaf harita konumunu da güncelleyebilir. Opsiyonel:
+	// ikisi birden gelirse geoLocation güncellenir, gelmezse mevcut konum korunur.
+	private Double latitude;
+	private Double longitude;
 }

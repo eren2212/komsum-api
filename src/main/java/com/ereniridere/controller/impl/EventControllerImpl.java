@@ -49,6 +49,20 @@ public class EventControllerImpl extends BaseController implements IEventControl
 		return ok(eventService.getDistrictEvents(userId, pageNo, pageSize));
 	}
 
+	// 2b. Yakınlık Bazlı Akış (Cihaz konumuna göre radius içindeki etkinlikler)
+	// lat/lng gönderilmezse servis ilçe bazlı akışa düşer (geriye uyumluluk).
+	@GetMapping("/nearby")
+	@Override
+	public RootEntity<Page<DtoEvent>> getNearbyEvents(@RequestParam(required = false) Double lat,
+			@RequestParam(required = false) Double lng, @RequestParam(defaultValue = "10000") Integer radius,
+			@RequestParam(defaultValue = "0") int pageNo, @RequestParam(defaultValue = "10") int pageSize) {
+
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		Integer userId = currentUser.getId();
+
+		return ok(eventService.getNearbyEvents(userId, lat, lng, radius, pageNo, pageSize));
+	}
+
 	// 3. Etkinliğe Katıl / Ayrıl (Toggle)
 	@PostMapping("/{id}/participate")
 	@Override

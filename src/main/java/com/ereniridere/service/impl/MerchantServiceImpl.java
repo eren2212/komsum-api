@@ -22,6 +22,7 @@ import com.ereniridere.repository.MerchantProfileRepository;
 import com.ereniridere.repository.NeighborhoodRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IMerchantService;
+import com.ereniridere.util.GeoUtils;
 
 @Service
 public class MerchantServiceImpl implements IMerchantService {
@@ -72,6 +73,9 @@ public class MerchantServiceImpl implements IMerchantService {
 		newMerchantProfile.setNeighborhood(dbUser.getNeighborhood());
 		newMerchantProfile.setVerified(false);
 
+		// lat/lng -> JTS Point (SRID 4326). SPONSORED radius filtresi bu konumu kullanır.
+		newMerchantProfile.setGeoLocation(GeoUtils.toPoint(request.getLatitude(), request.getLongitude()));
+
 		MerchantProfile savedProfile = merchantRepository.save(newMerchantProfile);
 
 		DtoMerchant dtoMerchant = new DtoMerchant();
@@ -79,6 +83,8 @@ public class MerchantServiceImpl implements IMerchantService {
 		BeanUtils.copyProperties(savedProfile, dtoMerchant);
 		dtoMerchant.setOwnerFirstName(dbUser.getFirstname());
 		dtoMerchant.setOwnerLastName(dbUser.getLastname());
+		dtoMerchant.setLatitude(GeoUtils.getLatitude(savedProfile.getGeoLocation()));
+		dtoMerchant.setLongitude(GeoUtils.getLongitude(savedProfile.getGeoLocation()));
 
 		return dtoMerchant;
 	}
@@ -110,6 +116,8 @@ public class MerchantServiceImpl implements IMerchantService {
 			BeanUtils.copyProperties(merchant, dto);
 			dto.setOwnerFirstName(merchant.getUser().getFirstname());
 			dto.setOwnerLastName(merchant.getUser().getLastname());
+			dto.setLatitude(GeoUtils.getLatitude(merchant.getGeoLocation()));
+			dto.setLongitude(GeoUtils.getLongitude(merchant.getGeoLocation()));
 			return dto;
 		}).collect(Collectors.toList());
 	}
@@ -139,6 +147,8 @@ public class MerchantServiceImpl implements IMerchantService {
 		BeanUtils.copyProperties(merchantProfile, dtoMerchant);
 		dtoMerchant.setOwnerFirstName(dbUser.getFirstname());
 		dtoMerchant.setOwnerLastName(dbUser.getLastname());
+		dtoMerchant.setLatitude(GeoUtils.getLatitude(merchantProfile.getGeoLocation()));
+		dtoMerchant.setLongitude(GeoUtils.getLongitude(merchantProfile.getGeoLocation()));
 
 		return dtoMerchant;
 	}
@@ -173,12 +183,20 @@ public class MerchantServiceImpl implements IMerchantService {
 			dbProfile.setNeighborhood(newNeighborhood);
 		}
 
+		// Konum güncellemesi: lat/lng ikisi birden geldiyse Point'i yenile.
+		// Sadece biri gelirse (eksik veri) mevcut konum korunur.
+		if (request.getLatitude() != null && request.getLongitude() != null) {
+			dbProfile.setGeoLocation(GeoUtils.toPoint(request.getLatitude(), request.getLongitude()));
+		}
+
 		MerchantProfile updatedProfile = merchantRepository.save(dbProfile);
 
 		DtoMerchant dtoMerchant = new DtoMerchant();
 		BeanUtils.copyProperties(updatedProfile, dtoMerchant);
 		dtoMerchant.setOwnerFirstName(dbProfile.getUser().getFirstname());
 		dtoMerchant.setOwnerLastName(dbProfile.getUser().getLastname());
+		dtoMerchant.setLatitude(GeoUtils.getLatitude(updatedProfile.getGeoLocation()));
+		dtoMerchant.setLongitude(GeoUtils.getLongitude(updatedProfile.getGeoLocation()));
 
 		return dtoMerchant;
 	}
@@ -198,6 +216,8 @@ public class MerchantServiceImpl implements IMerchantService {
 		BeanUtils.copyProperties(dbProfile, dtoMerchant);
 		dtoMerchant.setOwnerFirstName(dbProfile.getUser().getFirstname());
 		dtoMerchant.setOwnerLastName(dbProfile.getUser().getLastname());
+		dtoMerchant.setLatitude(GeoUtils.getLatitude(dbProfile.getGeoLocation()));
+		dtoMerchant.setLongitude(GeoUtils.getLongitude(dbProfile.getGeoLocation()));
 
 		return dtoMerchant;
 	}

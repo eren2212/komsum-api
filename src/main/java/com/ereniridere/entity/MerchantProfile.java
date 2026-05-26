@@ -3,6 +3,7 @@ package com.ereniridere.entity;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.locationtech.jts.geom.Point;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -42,7 +43,13 @@ public class MerchantProfile {
 	private String phone; // Esnafa ulaşılacak numara
 
 	@Column(nullable = false)
-	private String address; // Dükkanın fiziksel adresi
+	private String address; // Dükkanın fiziksel adresi (metin)
+
+	// PostGIS spatial konum (SRID 4326). Dükkanın harita koordinatı.
+	// SPONSORED post akışının radius (ST_DWithin) filtresi bu alan üzerinden çalışır.
+	// lat/lng dönüşümleri GeoUtils üzerinden yapılır.
+	@Column(name = "geo_location", columnDefinition = "geometry(Point, 4326)")
+	private Point geoLocation;
 
 	@Column(columnDefinition = "TEXT")
 	private String description; // "1990'dan beri hizmetinizdeyiz..."

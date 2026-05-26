@@ -46,4 +46,10 @@ public class DtoPost {
 	private boolean likedByMe;
 
 	private LocalDateTime createdAt;
+
+	// Yalnızca SPONSORED postlarda doldurulur: esnafın dükkan konumu (harita pini için).
+	// Standart/yardım postlarında null kalır.
+	private Double latitude;
+
+	private Double longitude;
 }

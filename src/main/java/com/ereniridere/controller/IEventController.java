@@ -12,6 +12,8 @@ public interface IEventController {
 
 	public RootEntity<Page<DtoEvent>> getDistrictEvents(int pageNo, int pageSize);
 
+	public RootEntity<Page<DtoEvent>> getNearbyEvents(Double lat, Double lng, Integer radius, int pageNo, int pageSize);
+
 	public RootEntity<String> toggleParticipation(Integer eventId);
 
 	public RootEntity<String> toggleBookmark(Integer eventId);

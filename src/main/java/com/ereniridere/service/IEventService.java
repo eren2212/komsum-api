@@ -10,8 +10,13 @@ public interface IEventService {
 	// 1. Etkinlik Oluştur
 	public DtoEvent createEvent(Integer userId, DtoCreateEvent request);
 
-	// 2. İlçe Bazlı Akış (Kendi ilçemdeki tüm etkinlikler)
+	// 2. İlçe Bazlı Akış (Kendi ilçemdeki tüm etkinlikler) — konum yokken fallback
 	public Page<DtoEvent> getDistrictEvents(Integer userId, int pageNo, int pageSize);
+
+	// 2b. Yakınlık Bazlı Akış: lat/lng verilirse 'radius' metre içindeki etkinlikler,
+	// verilmezse (null) ilçe bazlı akışa düşer (geriye uyumluluk).
+	public Page<DtoEvent> getNearbyEvents(Integer userId, Double lat, Double lng, Integer radius, int pageNo,
+			int pageSize);
 
 	// 3. Katılım İşlemi (Katıl / Ayrıl Toggle)
 	public String toggleParticipation(Integer userId, Integer eventId);
