@@ -2,7 +2,10 @@ package com.ereniridere.entity;
 
 import java.time.LocalDateTime;
 
+import com.ereniridere.util.crypto.CryptoConverter;
+
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -35,7 +38,10 @@ public class Message {
 	@JoinColumn(name = "sender_id", nullable = false)
 	private User sender;
 
-	@Column(nullable = false, length = 1000)
+	// Mesaj içeriği veritabanında AES-GCM ile şifreli tutulur (at-rest).
+	// Şifreli + Base64 metin orijinalden büyük olduğu için TEXT kullanıyoruz.
+	@Convert(converter = CryptoConverter.class)
+	@Column(nullable = false, columnDefinition = "TEXT")
 	private String content;
 
 	// MVP için çok mühim değil ama ileride "Görüldü" tiki yapmak istersen hayat

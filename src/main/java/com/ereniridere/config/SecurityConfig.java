@@ -13,6 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import com.ereniridere.security.JwtAuthenticationEntryPoint;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 
 @Configuration // "Bu bir ayar dosyasıdır"
@@ -38,12 +39,22 @@ public class SecurityConfig {
 				// 2. Yol (Endpoint) Kuralları: Kim nereye girebilir?
 				.authorizeHttpRequests(auth -> auth
 						// /api/auth/ ile başlayan yollara (Register, Login) HERKES GİREBİLİR (Biletsiz)
+						// SSE (canlı sohbet akışı) async bir istektir. Bağlantı kapanınca Tomcat
+						// isteği ASYNC olarak yeniden dispatch eder; o turda OncePerRequestFilter
+						// olan JwtAuthenticationFilter çalışmaz, SecurityContext boş kalır ve
+						// AuthorizationFilter "Access Denied" fırlatır (yanıt zaten gönderilmiştir).
+						// Asıl yetkilendirme ilk REQUEST dispatch'inde yapıldığından ASYNC/ERROR
+						// dispatch'lerini muaf tutuyoruz.
+						.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
 						.requestMatchers("/api/auth/**").permitAll()
 						// Geri kalan BÜTÜN yollara (örn: /api/pets, /api/appointments) GİRİŞ
 						// ZORUNLUDUR! (Biletli)
 
 						.requestMatchers("/api/locations/**").permitAll()
 						// Lokasyon verilerini herkese açıyoruz!
+
+						// KVKK / Aydınlatma metinleri kayıt öncesi gösterildiği için herkese açık
+						.requestMatchers("/api/legal/**").permitAll()
 						.anyRequest().authenticated())
 
 				// 3. Oturum Yönetimi (Stateless)

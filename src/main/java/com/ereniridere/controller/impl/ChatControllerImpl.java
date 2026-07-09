@@ -2,6 +2,7 @@ package com.ereniridere.controller.impl;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.ereniridere.controller.IChatController;
 import com.ereniridere.dto.request.message.DtoSendMessage;
@@ -20,6 +22,7 @@ import com.ereniridere.dto.response.message.DtoMessage;
 import com.ereniridere.entity.RootEntity;
 import com.ereniridere.entity.User;
 import com.ereniridere.service.IChatService;
+import com.ereniridere.service.IRealtimeChatService;
 
 import jakarta.validation.Valid;
 
@@ -29,6 +32,9 @@ public class ChatControllerImpl extends BaseController implements IChatControlle
 
 	@Autowired
 	private IChatService chatService;
+
+	@Autowired
+	private IRealtimeChatService realtimeChatService;
 
 	// 1. Sohbet Başlat (Gidip adamın profiline tıkladığımızda çalışacak)
 	@PostMapping("/start")
@@ -83,5 +89,13 @@ public class ChatControllerImpl extends BaseController implements IChatControlle
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		chatService.markAsRead(currentUser.getId(), roomId);
 		return ok(null);
+	}
+
+	// 6. Canlı Mesaj Akışı (SSE) — Supabase realtime'ın yerine geçer.
+	@GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+	@Override
+	public SseEmitter stream() {
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		return realtimeChatService.subscribe(currentUser.getId());
 	}
 }

@@ -1,8 +1,11 @@
 package com.ereniridere.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -16,11 +19,16 @@ import com.ereniridere.dto.request.auth.DtoRegisterRequest;
 import com.ereniridere.dto.request.user.DtoForgotPassword;
 import com.ereniridere.dto.request.user.DtoResetPassword;
 import com.ereniridere.dto.response.DtoAuthenticationResponse;
+import com.ereniridere.entity.LegalDocument;
 import com.ereniridere.entity.Role;
 import com.ereniridere.entity.User;
+import com.ereniridere.entity.UserConsent;
+import com.ereniridere.entity.enums.LegalDocumentType;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
+import com.ereniridere.repository.LegalDocumentRepository;
+import com.ereniridere.repository.UserConsentRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.INeighborhoodService;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
@@ -53,6 +61,12 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 	@Autowired
 	private IEmailService emailService;
 
+	@Autowired
+	private LegalDocumentRepository legalDocumentRepository;
+
+	@Autowired
+	private UserConsentRepository userConsentRepository;
+
 	AuthenticationServiceImpl(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 	}
@@ -65,6 +79,20 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 					new ErrorMessage(MessageType.RECORD_ALREADY_EXISTS, "Bu e-posta zaten kullanılıyor"));
 		}
 
+		// Onaylanan yasal metinleri doğrula: KVKK + Aydınlatma metninin ikisi de
+		// kabul edilmiş olmalı.
+		List<LegalDocument> acceptedDocuments = legalDocumentRepository
+				.findAllById(request.getAcceptedLegalDocumentIds());
+		Set<LegalDocumentType> acceptedTypes = EnumSet.noneOf(LegalDocumentType.class);
+		for (LegalDocument doc : acceptedDocuments) {
+			acceptedTypes.add(doc.getType());
+		}
+		if (!acceptedTypes.contains(LegalDocumentType.KVKK)
+				|| !acceptedTypes.contains(LegalDocumentType.AYDINLATMA_METNI)) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED,
+					"Kayıt için KVKK Açık Rıza ve Aydınlatma metinlerinin ikisini de onaylamanız gerekiyor."));
+		}
+
 		var selectedNeighborhood = neighborhoodService.getOrCreate(request.getNeighborhoodId());
 
 		var user = User.builder().firstname(request.getFirstname()).lastname(request.getLastname())
@@ -72,6 +100,15 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 				.neighborhood(selectedNeighborhood).build();
 
 		userRepository.save(user);
+
+		// Kabul edilen her metin için onay kaydı tut (KVKK uyumu / kabul kanıtı).
+		for (LegalDocument doc : acceptedDocuments) {
+			userConsentRepository.save(UserConsent.builder()
+					.user(user)
+					.documentType(doc.getType())
+					.documentVersion(doc.getVersion())
+					.build());
+		}
 
 		var jwtToken = jwtService.generateToken(user);
 		var refreshToken = jwtService.generateRefreshToken(user);

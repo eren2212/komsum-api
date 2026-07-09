@@ -1,0 +1,51 @@
+-- =============================================================================
+--  Komşum — Saat Dilimi + Mesaj Şifreleme Migrasyonu (MANUEL RUNBOOK)
+--  Projede Flyway/Liquibase YOK; şema ddl-auto=update ile yönetiliyor.
+--  Bu adımlar Supabase SQL editöründe ELLE çalıştırılır.
+--  Hepsi MEVCUT (eski) verilerle ilgilidir; yeni kayıtlar kod tarafında
+--  zaten doğru üretilir.
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- BÖLÜM A — Saat dilimi düzeltmesi (Europe/Istanbul, UTC+3)
+-- Uygulama artık zamanı Türkiye saatinde üretiyor (TimeZoneConfig). Ancak bu
+-- değişiklikten ÖNCE yazılmış satırlar UTC ile kaydedildiği için ~3 saat geride.
+-- Eski satırları bir kereye mahsus +3 saat kaydırmak için (yalnızca eski verilerde,
+-- migrasyon tarihinden önceki kayıtlarda çalıştırın — iki kez çalıştırmayın!):
+-- -----------------------------------------------------------------------------
+-- UPDATE posts        SET created_at      = created_at      + INTERVAL '3 hours';
+-- UPDATE comments     SET created_at      = created_at      + INTERVAL '3 hours';
+-- UPDATE messages     SET created_at      = created_at      + INTERVAL '3 hours';
+-- UPDATE chat_rooms   SET created_at      = created_at      + INTERVAL '3 hours',
+--                         last_message_at = last_message_at + INTERVAL '3 hours';
+--
+-- NOT: Çift kaydırmayı önlemek için bu UPDATE'leri SADECE bir kez ve yalnızca
+-- yeni kod devreye girmeden önceki satırlara uygulayın. Tablolar test verisiyse
+-- bu bölümü atlayabilirsiniz.
+
+
+-- -----------------------------------------------------------------------------
+-- BÖLÜM B — Mesaj şifreleme (at-rest, AES-256-GCM)
+-- messages.content ve chat_rooms.last_message_content artık CryptoConverter ile
+-- ŞİFRELİ (Base64) saklanır ve TEXT tipine geçmiştir.
+--
+-- 1) Kolon tipi: ddl-auto=update bazı durumlarda varchar(1000)->TEXT dönüşümünü
+--    otomatik yapmayabilir. Gerekirse elle:
+-- -----------------------------------------------------------------------------
+-- ALTER TABLE messages   ALTER COLUMN content              TYPE TEXT;
+-- ALTER TABLE chat_rooms ALTER COLUMN last_message_content TYPE TEXT;
+--
+-- 2) MESSAGE_ENCRYPTION_KEY ortam değişkenini ayarlayın (Base64 kodlu 32 byte).
+--    Örnek anahtar üretimi (lokal):
+--      openssl rand -base64 32
+--    Bu anahtar olmadan uygulama mesaj okuyup yazamaz.
+--
+-- 3) ESKİ (şifresiz) satırlar yeni okuma mantığıyla ÇÖZÜLEMEZ — okurken hata verir.
+--    Tablolar test verisiyse en temizi eski mesajları silmek:
+-- -----------------------------------------------------------------------------
+-- DELETE FROM messages;
+-- UPDATE chat_rooms SET last_message_content = NULL;
+--
+--    Gerçek veri ise: anahtarı belirleyip, eski düz metinleri tek seferlik bir
+--    script ile okuyup CryptoConverter formatında yeniden yazmanız gerekir.

@@ -344,6 +344,228 @@
           }
         }
       ]
+    },
+    {
+      "name": "5) Service Provider (Ustalar)",
+      "description": "AKIS: (1) User A usta profili olustur -> (2) /me ile getir -> (3) /me/update ile musaitlik/ucret degistir -> (4) User B directory ONAY ONCESI bos -> (5) MANUEL SQL ile onayla -> (6) User B directory ONAY SONRASI 1 kayit -> (7) kategori filtresi -> (8) User A sil.\n\nMANUEL ONAY SQL (Supabase):\n  UPDATE service_provider_profiles SET is_verified = true WHERE title = 'Matematik Ogretmeni A';\n\nNOT: Bu klasoru calistirmadan once 2) Auth klasorunu calistir (tokenA, tokenB dolu olmali). User A bu klasorde HEM esnaf HEM usta olabilir (ayri tablo).",
+      "item": [
+        {
+          "name": "Create Service Provider (User A) [lat/lng]",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('available default true', () => pm.expect(r.data.available).to.be.true);",
+              "pm.test('verified false baslar', () => pm.expect(r.data.verified).to.be.false);",
+              "pm.test('konum geri dondu', () => { pm.expect(r.data.latitude).to.be.a('number'); pm.expect(r.data.longitude).to.be.a('number'); });",
+              "console.log('>>> SIMDI SUPABASE SQL CALISTIR: UPDATE service_provider_profiles SET is_verified = true WHERE title = \\'Matematik Ogretmeni A\\';');"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Matematik Ogretmeni A\",\n  \"category\": \"OGRETMEN\",\n  \"phone\": \"05551112233\",\n  \"address\": \"Test Mah. Test Cad. No:1\",\n  \"description\": \"Postman usta test profili\",\n  \"experienceYears\": 8,\n  \"priceInfo\": \"500 TL / saat\",\n  \"latitude\": {{shopLat}},\n  \"longitude\": {{shopLng}}\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/service-providers/create", "host": ["{{baseUrl}}"], "path": ["api","service-providers","create"] }
+          }
+        },
+        {
+          "name": "Get My Profile (User A) -> /me",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('dogru kategori', () => pm.expect(r.data.category).to.eql('OGRETMEN'));",
+              "pm.test('owner adi geldi', () => pm.expect(r.data.ownerFirstName).to.be.a('string'));"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/me", "host": ["{{baseUrl}}"], "path": ["api","service-providers","me"] }
+          }
+        },
+        {
+          "name": "Update Profile (User A) -> /me/update",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('available false oldu', () => pm.expect(r.data.available).to.be.false);",
+              "pm.test('priceInfo guncellendi', () => pm.expect(r.data.priceInfo).to.eql('Pazarliga acik'));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"available\": false,\n  \"priceInfo\": \"Pazarliga acik\"\n}", "options": { "raw": { "language": "json" } } },
+            "url": { "raw": "{{baseUrl}}/api/service-providers/me/update", "host": ["{{baseUrl}}"], "path": ["api","service-providers","me","update"] }
+          }
+        },
+        {
+          "name": "Directory ONAY ONCESI (User B) -> bos donmeli",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('onaysiz usta gorunmez', () => pm.expect(r.data.length).to.eql(0));",
+              "console.log('>>> Bos cikmadiysa: usta zaten onaylanmis olabilir. Onay SQL su an calistirilmali.');"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/directory", "host": ["{{baseUrl}}"], "path": ["api","service-providers","directory"] }
+          }
+        },
+        {
+          "name": "Directory ONAY SONRASI (User B) -> 1 kayit [ONCE ONAYLA!]",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('onayli usta gorunur', () => pm.expect(r.data.length).to.be.above(0));",
+              "if (r.data.length) { const s = r.data[0]; console.log('title =', s.title, '| category =', s.category, '| available =', s.available); }"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/directory", "host": ["{{baseUrl}}"], "path": ["api","service-providers","directory"] }
+          }
+        },
+        {
+          "name": "Directory + kategori filtresi DOGRU (User B) -> 1 kayit",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('OGRETMEN filtresinde gelir', () => pm.expect(r.data.length).to.be.above(0));"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/directory?category=OGRETMEN", "host": ["{{baseUrl}}"], "path": ["api","service-providers","directory"], "query": [{ "key": "category", "value": "OGRETMEN" }] }
+          }
+        },
+        {
+          "name": "Directory + kategori filtresi YANLIS (User B) -> bos",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('BAKICI filtresinde gelmez', () => pm.expect(r.data.length).to.eql(0));"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/directory?category=BAKICI", "host": ["{{baseUrl}}"], "path": ["api","service-providers","directory"], "query": [{ "key": "category", "value": "BAKICI" }] }
+          }
+        },
+        {
+          "name": "Nearby YAKIN (User B, 5km) -> usta gelmeli",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('5km icinde usta var', () => pm.expect(r.data.content.length).to.be.above(0));",
+              "if (r.data.content.length) { const s = r.data.content[0]; console.log('title =', s.title, '| lat =', s.latitude, '| lng =', s.longitude); }"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/nearby?lat={{shopLat}}&lng={{shopLng}}&radius=5000&pageNo=0&pageSize=10", "host": ["{{baseUrl}}"], "path": ["api","service-providers","nearby"], "query": [
+              { "key": "lat", "value": "{{shopLat}}" },
+              { "key": "lng", "value": "{{shopLng}}" },
+              { "key": "radius", "value": "5000" },
+              { "key": "pageNo", "value": "0" },
+              { "key": "pageSize", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Nearby UZAK (User B, baska sehir) -> bos donmeli",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('uzak noktada usta yok', () => pm.expect(r.data.content.length).to.eql(0));",
+              "console.log('uzak nearby sonuc sayisi =', r.data.content.length);"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/nearby?lat={{farLat}}&lng={{farLng}}&radius=5000", "host": ["{{baseUrl}}"], "path": ["api","service-providers","nearby"], "query": [
+              { "key": "lat", "value": "{{farLat}}" },
+              { "key": "lng", "value": "{{farLng}}" },
+              { "key": "radius", "value": "5000" }
+            ] }
+          }
+        },
+        {
+          "name": "Nearby YAKIN + kategori DOGRU (User B, OGRETMEN) -> usta gelmeli",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('OGRETMEN + yakin gelir', () => pm.expect(r.data.content.length).to.be.above(0));"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/nearby?lat={{shopLat}}&lng={{shopLng}}&radius=5000&category=OGRETMEN", "host": ["{{baseUrl}}"], "path": ["api","service-providers","nearby"], "query": [
+              { "key": "lat", "value": "{{shopLat}}" },
+              { "key": "lng", "value": "{{shopLng}}" },
+              { "key": "radius", "value": "5000" },
+              { "key": "category", "value": "OGRETMEN" }
+            ] }
+          }
+        },
+        {
+          "name": "Nearby YAKIN ama dar radius (User B, 100m) -> bos (uzaklik filtresi)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "console.log('100m radius sonuc sayisi =', r.data.content.length, '(usta tam ayni noktadaysa 1, degilse 0 beklenir)');"
+            ] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/nearby?lat={{farLat}}&lng={{farLng}}&radius=100", "host": ["{{baseUrl}}"], "path": ["api","service-providers","nearby"], "query": [
+              { "key": "lat", "value": "{{farLat}}" },
+              { "key": "lng", "value": "{{farLng}}" },
+              { "key": "radius", "value": "100" }
+            ] }
+          }
+        },
+        {
+          "name": "Delete My Profile (User A) -> /me/delete",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "const r = pm.response.json();",
+              "pm.test('result true', () => pm.expect(r.result).to.be.true);",
+              "pm.test('silindi (data true)', () => pm.expect(r.data).to.be.true);"
+            ] } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/service-providers/me/delete", "host": ["{{baseUrl}}"], "path": ["api","service-providers","me","delete"] }
+          }
+        }
+      ]
     }
   ]
 }

@@ -5,8 +5,10 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ereniridere.entity.Event;
 
@@ -44,4 +46,11 @@ public interface EventRepository extends JpaRepository<Event, Integer> {
 	// Sıralama servis katmanında ID listesine göre yeniden uygulanır.
 	@Query("SELECT e FROM Event e JOIN FETCH e.author JOIN FETCH e.neighborhood WHERE e.id IN :ids")
 	List<Event> findAllByIdInWithFetch(@Param("ids") List<Integer> ids);
+
+	// Hesap silme: kullanıcının oluşturduğu tüm etkinlikleri sil.
+	// (Önce katılım/bookmark kayıtları temizlenmiş olmalı — FK kısıtı.)
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM Event e WHERE e.author.id = :userId")
+	void deleteAllByAuthorId(@Param("userId") Integer userId);
 }

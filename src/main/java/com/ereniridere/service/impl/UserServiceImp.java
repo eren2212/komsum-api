@@ -7,7 +7,9 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.ereniridere.dto.request.user.DtoDeleteAccount;
 import com.ereniridere.dto.request.user.DtoUserPassword;
 import com.ereniridere.dto.request.user.DtoUserUpdate;
 import com.ereniridere.dto.response.User.DtoNeighborhood;
@@ -18,7 +20,20 @@ import com.ereniridere.entity.User;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
+import com.ereniridere.repository.ChatRoomRepository;
+import com.ereniridere.repository.CommentRepository;
+import com.ereniridere.repository.EventBookmarkRepository;
+import com.ereniridere.repository.EventParticipantRepository;
+import com.ereniridere.repository.EventRepository;
+import com.ereniridere.repository.MarketplaceListingRepository;
+import com.ereniridere.repository.MerchantProfileRepository;
+import com.ereniridere.repository.MessageRepository;
 import com.ereniridere.repository.NeighborhoodRepository;
+import com.ereniridere.repository.NotificationRepository;
+import com.ereniridere.repository.PostLikeRepository;
+import com.ereniridere.repository.PostRepository;
+import com.ereniridere.repository.ServiceProviderProfileRepository;
+import com.ereniridere.repository.UserConsentRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.service.IUserService;
@@ -36,6 +51,34 @@ public class UserServiceImp implements IUserService {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	// Hesap silme için kullanıcıya bağlı tüm verileri temizleyen repository'ler
+	@Autowired
+	private NotificationRepository notificationRepository;
+	@Autowired
+	private UserConsentRepository userConsentRepository;
+	@Autowired
+	private ServiceProviderProfileRepository serviceProviderProfileRepository;
+	@Autowired
+	private MerchantProfileRepository merchantProfileRepository;
+	@Autowired
+	private EventParticipantRepository eventParticipantRepository;
+	@Autowired
+	private EventBookmarkRepository eventBookmarkRepository;
+	@Autowired
+	private EventRepository eventRepository;
+	@Autowired
+	private CommentRepository commentRepository;
+	@Autowired
+	private PostLikeRepository postLikeRepository;
+	@Autowired
+	private PostRepository postRepository;
+	@Autowired
+	private MarketplaceListingRepository marketplaceListingRepository;
+	@Autowired
+	private MessageRepository messageRepository;
+	@Autowired
+	private ChatRoomRepository chatRoomRepository;
 
 	UserServiceImp(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -176,5 +219,46 @@ public class UserServiceImp implements IUserService {
 
 		return true; // İşlem başarılı!
 
+	}
+
+	// Hesap silme (KVKK + App Store/Google Play). Kullanıcıyı ve ona bağlı TÜM
+	// verileri kalıcı olarak siler. Foreign key kısıtları için silme sırası
+	// önemlidir: önce çocuk kayıtlar, en son kullanıcının kendisi. Tek transaction
+	// içinde yapılır — herhangi bir adım patlarsa hiçbiri silinmez.
+	@Override
+	@Transactional
+	public void deleteMyAccount(Integer userId, DtoDeleteAccount request) {
+
+		User dbUser = userRepository.findById(userId)
+				.orElseThrow(() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
+
+		// Geri dönüşü olmayan işlem — şifre doğrulaması iste.
+		if (!passwordEncoder.matches(request.getPassword(), dbUser.getPassword())) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Şifreniz hatalı."));
+		}
+
+		// 1) Bildirimler (alıcı veya aktör)
+		notificationRepository.deleteAllByUserId(userId);
+		// 2) KVKK / onay kayıtları
+		userConsentRepository.deleteAllByUserId(userId);
+		// 3) Profiller (esnaf / usta)
+		serviceProviderProfileRepository.deleteAllByUserId(userId);
+		merchantProfileRepository.deleteAllByUserId(userId);
+		// 4) Etkinlik katılım/bookmark kayıtları (kendi + sildiği etkinliklere ait)
+		eventParticipantRepository.deleteAllByUserIdOrAuthoredEvents(userId);
+		eventBookmarkRepository.deleteAllByUserIdOrAuthoredEvents(userId);
+		// 5) Etkinlikler
+		eventRepository.deleteAllByAuthorId(userId);
+		// 6) Yorum ve beğeniler (kendi + kendi postlarına gelenler) → sonra postlar
+		commentRepository.deleteAllByAuthorIdOrAuthoredPosts(userId);
+		postLikeRepository.deleteAllByUserIdOrAuthoredPosts(userId);
+		postRepository.deleteAllByAuthorId(userId);
+		// 7) Pazar yeri ilanları
+		marketplaceListingRepository.deleteAllByUserId(userId);
+		// 8) Mesajlar → sonra sohbet odaları
+		messageRepository.deleteAllByUserChatRooms(userId);
+		chatRoomRepository.deleteAllByParticipant(userId);
+		// 9) En son: kullanıcının kendisi
+		userRepository.delete(dbUser);
 	}
 }

@@ -2,6 +2,7 @@ package com.ereniridere.controller.impl;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ereniridere.controller.IUserController;
+import com.ereniridere.dto.request.user.DtoDeleteAccount;
 import com.ereniridere.dto.request.user.DtoUserPassword;
 import com.ereniridere.dto.request.user.DtoUserUpdate;
 import com.ereniridere.dto.response.User.DtoNeighbour;
@@ -71,6 +73,18 @@ public class UserControllerImpl extends BaseController implements IUserControlle
 
 		Integer userId = currentUser.getId();
 		return ok(userService.updatePassword(userId, dtoUserPassword));
+	}
+
+	// Hesap silme (KVKK + App Store/Google Play). Kullanıcı kendi hesabını ve
+	// ona bağlı tüm verileri kalıcı olarak siler. Şifre doğrulaması ister.
+	@DeleteMapping(path = "/me")
+	@Override
+	public RootEntity<Void> deleteMyAccount(@Valid @RequestBody DtoDeleteAccount request) {
+
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+		userService.deleteMyAccount(currentUser.getId(), request);
+		return ok(null);
 	}
 
 }

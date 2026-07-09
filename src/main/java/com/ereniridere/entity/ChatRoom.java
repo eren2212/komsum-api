@@ -2,7 +2,10 @@ package com.ereniridere.entity;
 
 import java.time.LocalDateTime;
 
+import com.ereniridere.util.crypto.CryptoConverter;
+
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -41,6 +44,8 @@ public class ChatRoom {
 	@Column(name = "last_message_at")
 	private LocalDateTime lastMessageAt = LocalDateTime.now();
 
-	@Column(name = "last_message_content", length = 200)
+	// Son mesaj önizlemesi de mesaj içeriğini barındırdığı için şifreli tutulur.
+	@Convert(converter = CryptoConverter.class)
+	@Column(name = "last_message_content", columnDefinition = "TEXT")
 	private String lastMessageContent;
 }

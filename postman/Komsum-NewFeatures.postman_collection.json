@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "Komşum — Yeni Özellikler (KVKK + Şifreli Mesaj)",
+    "description": "Yeni eklenen endpoint'ler ve değişen kayıt akışı için test koleksiyonu.\n\nÖZELLİKLER\n- /api/legal: KVKK + Aydınlatma metinleri (token GEREKMEZ)\n- /api/auth/register: artık acceptedLegalDocumentIds zorunlu\n- /api/chats: mesajlar DB'de şifreli, API'de düz metin döner\n\nÖNERİLEN SIRA (Collection Runner ya da elle):\n1) Legal > Tüm Yasal Metinler  (kvkkId + aydinlatmaId otomatik dolar)\n2) Locations > İller / İlçeler / Mahalleler  (neighborhoodId otomatik dolar)\n3) Auth > Register  (token'lar otomatik dolar)  veya  Auth > Login\n4) Chat > Sohbet Başlat (targetUserId'yi elle gir) > Mesaj Gönder > Mesajları Çek\n\nDEĞİŞKENLER aşağıda; baseUrl'i kendine göre düzenle.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "kvkkId", "value": "" },
+    { "key": "aydinlatmaId", "value": "" },
+    { "key": "cityId", "value": "" },
+    { "key": "districtId", "value": "" },
+    { "key": "neighborhoodId", "value": "" },
+    { "key": "regEmail", "value": "" },
+    { "key": "roomId", "value": "" },
+    { "key": "targetUserId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Legal (Yasal Metinler)",
+      "item": [
+        {
+          "name": "Tüm Yasal Metinler (GET /api/legal)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('result true', () => pm.expect(json.result).to.be.true);",
+                  "const docs = json.data || [];",
+                  "pm.test('iki metin de var', () => pm.expect(docs.length).to.be.at.least(2));",
+                  "docs.forEach(d => {",
+                  "  if (d.type === 'KVKK') pm.collectionVariables.set('kvkkId', d.id);",
+                  "  if (d.type === 'AYDINLATMA_METNI') pm.collectionVariables.set('aydinlatmaId', d.id);",
+                  "});",
+                  "console.log('kvkkId=', pm.collectionVariables.get('kvkkId'), ' aydinlatmaId=', pm.collectionVariables.get('aydinlatmaId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/legal", "host": ["{{baseUrl}}"], "path": ["api", "legal"] },
+            "description": "Yürürlükteki tüm yasal metinleri döner. Token gerekmez. Test script'i kvkkId ve aydinlatmaId değişkenlerini otomatik doldurur."
+          }
+        },
+        {
+          "name": "KVKK Metni (GET /api/legal/KVKK)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/legal/KVKK", "host": ["{{baseUrl}}"], "path": ["api", "legal", "KVKK"] }
+          }
+        },
+        {
+          "name": "Aydınlatma Metni (GET /api/legal/AYDINLATMA_METNI)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/legal/AYDINLATMA_METNI", "host": ["{{baseUrl}}"], "path": ["api", "legal", "AYDINLATMA_METNI"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Locations (yardımcı — neighborhoodId için)",
+      "item": [
+        {
+          "name": "İller (GET /api/locations/cities)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || [];",
+                  "if (data.length) pm.collectionVariables.set('cityId', data[0].id);",
+                  "console.log('cityId=', pm.collectionVariables.get('cityId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/locations/cities", "host": ["{{baseUrl}}"], "path": ["api", "locations", "cities"] },
+            "description": "İlk ilin id'sini cityId'ye yazar."
+          }
+        },
+        {
+          "name": "İlçeler (GET /api/locations/districts)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || [];",
+                  "if (data.length) pm.collectionVariables.set('districtId', data[0].id);",
+                  "console.log('districtId=', pm.collectionVariables.get('districtId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/districts?cityId={{cityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "districts"],
+              "query": [{ "key": "cityId", "value": "{{cityId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Mahalleler (GET /api/locations/neighborhoods)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data || [];",
+                  "if (data.length) pm.collectionVariables.set('neighborhoodId', data[0].id);",
+                  "console.log('neighborhoodId=', pm.collectionVariables.get('neighborhoodId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/locations/neighborhoods?districtId={{districtId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "locations", "neighborhoods"],
+              "query": [{ "key": "districtId", "value": "{{districtId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (POST /api/auth/register)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Her çalıştırmada benzersiz e-posta üret (tekrar tekrar kayıt için)",
+                  "pm.collectionVariables.set('regEmail', 'komsu' + Date.now() + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('result true', () => pm.expect(json.result).to.be.true);",
+                  "const data = json.data;",
+                  "if (data) {",
+                  "  pm.collectionVariables.set('accessToken', data.access_token);",
+                  "  pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Eren\",\n  \"lastname\": \"Komsu\",\n  \"email\": \"{{regEmail}}\",\n  \"password\": \"sifre1234\",\n  \"neighborhoodId\": {{neighborhoodId}},\n  \"acceptedLegalDocumentIds\": [{{aydinlatmaId}}, {{kvkkId}}]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+            "description": "YENİ ALAN: acceptedLegalDocumentIds zorunlu (KVKK + Aydınlatma metni id'leri). Boş ya da eksik tip gönderirsen 'Doğrulama hatası' alırsın.\n\nÖnce 'Legal > Tüm Yasal Metinler' ve 'Locations' isteklerini çalıştır ki id değişkenleri dolsun. Başarılı kayıtta access/refresh token otomatik kaydedilir."
+          }
+        },
+        {
+          "name": "Login (POST /api/auth/login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data) {",
+                  "  pm.collectionVariables.set('accessToken', data.access_token);",
+                  "  pm.collectionVariables.set('refreshToken', data.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{regEmail}}\",\n  \"password\": \"sifre1234\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "description": "Register ile oluşturulan hesapla giriş. Token'ları yeniler."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat (Şifreleme testi)",
+      "item": [
+        {
+          "name": "Sohbet Başlat (POST /api/chats/start)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json().data;",
+                  "if (data) pm.collectionVariables.set('roomId', data.id);",
+                  "console.log('roomId=', pm.collectionVariables.get('roomId'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetUserId\": {{targetUserId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/chats/start", "host": ["{{baseUrl}}"], "path": ["api", "chats", "start"] },
+            "description": "targetUserId'yi (mesaj atılacak başka bir kullanıcı id'si) elle gir. Dönen oda id'si roomId'ye yazılır. Bearer token gerekir."
+          }
+        },
+        {
+          "name": "Mesaj Gönder (POST /api/chats/{roomId}/messages)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Merhaba komşum, bu mesaj DB'de şifreli duruyor!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/chats/{{roomId}}/messages", "host": ["{{baseUrl}}"], "path": ["api", "chats", "{{roomId}}", "messages"] },
+            "description": "Dönen yanıtta içerik DÜZ metindir (şeffaf çözme). Doğrulamak istersen DB'de messages.content sütununun Base64/şifreli olduğunu kontrol et."
+          }
+        },
+        {
+          "name": "Mesajları Çek (GET /api/chats/{roomId}/messages)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/{{roomId}}/messages?pageNo=0&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "{{roomId}}", "messages"],
+              "query": [
+                { "key": "pageNo", "value": "0" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            },
+            "description": "Mesajlar düz metin olarak döner (DB'de şifreli, okurken çözülür)."
+          }
+        },
+        {
+          "name": "Gelen Kutusu (GET /api/chats/inbox)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chats/inbox?pageNo=0&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chats", "inbox"],
+              "query": [
+                { "key": "pageNo", "value": "0" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            },
+            "description": "Oda önizlemesi (last_message_content) de DB'de şifreli; burada düz metin döner."
+          }
+        }
+      ]
+    },
+    {
+      "name": "User (Hesap)",
+      "item": [
+        {
+          "name": "Hesabı Sil (DELETE /api/users/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('result true', () => pm.expect(json.result).to.be.true);",
+                  "// Hesap silindiyse token artık geçersiz — temizle",
+                  "if (json.result) {",
+                  "  pm.collectionVariables.set('accessToken', '');",
+                  "  pm.collectionVariables.set('refreshToken', '');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"sifre1234\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/users/me", "host": ["{{baseUrl}}"], "path": ["api", "users", "me"] },
+            "description": "Giriş yapmış kullanıcının hesabını ve ona bağlı TÜM verileri (post, yorum, beğeni, ilan, etkinlik, mesaj, sohbet, profiller, onaylar) kalıcı olarak siler. Bearer token gerekir ve gövdede mevcut şifre doğrulaması istenir. Yanlış şifrede 'Doğrulama hatası: Şifreniz hatalı.' döner.\n\nGERİ ALINAMAZ — test ederken gözden çıkardığın bir hesapla dene."
+          }
+        }
+      ]
+    }
+  ]
+}

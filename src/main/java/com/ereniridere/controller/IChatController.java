@@ -1,6 +1,7 @@
 package com.ereniridere.controller;
 
 import org.springframework.data.domain.Page;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.ereniridere.dto.request.message.DtoSendMessage;
 import com.ereniridere.dto.request.message.DtoStartChat;
@@ -19,5 +20,8 @@ public interface IChatController {
 	public RootEntity<Page<DtoChatRoom>> getMyChatRooms(int pageNo, int pageSize);
 
 	public RootEntity<Void> markAsRead(Integer roomId);
+
+	// Canlı mesaj akışı (SSE). RootEntity zarfı kullanmaz; doğrudan SseEmitter döner.
+	public SseEmitter stream();
 
 }

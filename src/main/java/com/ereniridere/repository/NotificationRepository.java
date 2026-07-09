@@ -32,4 +32,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 	@Transactional
 	@Query("UPDATE Notification n SET n.isRead = true WHERE n.recipient.id = :userId AND n.isRead = false")
 	int markAllAsRead(@Param("userId") Integer userId);
+
+	// Hesap silme: kullanıcının alıcı VEYA aktör olduğu tüm bildirimleri sil.
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM Notification n WHERE n.recipient.id = :userId OR n.actor.id = :userId")
+	void deleteAllByUserId(@Param("userId") Integer userId);
 }

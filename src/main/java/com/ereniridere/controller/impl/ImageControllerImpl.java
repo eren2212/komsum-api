@@ -9,14 +9,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.ereniridere.entity.RootEntity;
-import com.ereniridere.service.impl.SupabaseStorageServiceImpl;
+import com.ereniridere.service.IStorageService;
 
 @RestController
 @RequestMapping("/api/images")
 class ImageControllerImpl extends BaseController {
 
 	@Autowired
-	private SupabaseStorageServiceImpl storageService;
+	private IStorageService storageService;
 
 	// Mobilden resmi yollarken artık URL'in sonuna klasör adını ekleyecek!
 	// Örnek: POST /api/images/upload/merchants

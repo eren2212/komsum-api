@@ -49,6 +49,12 @@ CREATE INDEX IF NOT EXISTS idx_events_geo_location_geog
 CREATE INDEX IF NOT EXISTS idx_merchant_geo_location_geog
   ON merchant_profiles USING GIST ((geo_location::geography));
 
+-- "Gerekli Kişiler / Ustalar" (service_provider_profiles) tablosu da aynı şekilde
+-- geometry(Point,4326) geo_location taşır. İleride "yakındaki ustalar" sorgusu
+-- metre bazlı ST_DWithin çalıştıracağı için index aynı ifade üzerinde olmalı.
+CREATE INDEX IF NOT EXISTS idx_service_provider_geo_location_geog
+  ON service_provider_profiles USING GIST ((geo_location::geography));
+
 -- (Opsiyonel) İstatistikleri tazele:
 -- ANALYZE events;
 -- ANALYZE merchant_profiles;

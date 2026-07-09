@@ -1,5 +1,6 @@
 package com.ereniridere.controller;
 
+import com.ereniridere.dto.request.user.DtoDeleteAccount;
 import com.ereniridere.dto.request.user.DtoUserPassword;
 import com.ereniridere.dto.request.user.DtoUserUpdate;
 import com.ereniridere.dto.response.User.DtoNeighbour;
@@ -15,4 +16,6 @@ public interface IUserController {
 	public RootEntity<DtoUserProfile> updateProfile(DtoUserUpdate dtoUserUpdate);
 
 	public RootEntity<Boolean> updatePassword(DtoUserPassword dtoUserPassword);
+
+	public RootEntity<Void> deleteMyAccount(DtoDeleteAccount request);
 }

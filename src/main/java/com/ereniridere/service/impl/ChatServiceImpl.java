@@ -15,6 +15,7 @@ import com.ereniridere.dto.request.message.DtoSendMessage;
 import com.ereniridere.dto.request.message.DtoStartChat;
 import com.ereniridere.dto.response.message.DtoChatRoom;
 import com.ereniridere.dto.response.message.DtoMessage;
+import com.ereniridere.dto.response.message.DtoRealtimeMessage;
 import com.ereniridere.entity.ChatRoom;
 import com.ereniridere.entity.Message;
 import com.ereniridere.entity.User;
@@ -26,6 +27,7 @@ import com.ereniridere.repository.ChatRoomRepository;
 import com.ereniridere.repository.MessageRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IChatService;
+import com.ereniridere.service.IRealtimeChatService;
 
 @Service
 public class ChatServiceImpl implements IChatService {
@@ -41,6 +43,9 @@ public class ChatServiceImpl implements IChatService {
 
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
+
+	@Autowired
+	private IRealtimeChatService realtimeChatService;
 
 	@Override
 	public DtoChatRoom startChat(Integer currentUserId, DtoStartChat request) {
@@ -106,6 +111,17 @@ public class ChatServiceImpl implements IChatService {
 				? room.getUser2().getId()
 				: room.getUser1().getId();
 		eventPublisher.publishEvent(new MessageSentEvent(savedMessage, recipientId));
+
+		// 2.2 Canlı teslim (SSE). Her iki katılımcıya da gönderiyoruz: alıcı anında
+		// görsün, gönderenin diğer açık cihazları da senkron kalsın.
+		DtoRealtimeMessage realtimePayload = new DtoRealtimeMessage();
+		realtimePayload.setId(savedMessage.getId());
+		realtimePayload.setChatRoomId(room.getId());
+		realtimePayload.setSenderId(sender.getId());
+		realtimePayload.setContent(savedMessage.getContent());
+		realtimePayload.setCreatedAt(savedMessage.getCreatedAt());
+		realtimeChatService.sendToUser(room.getUser1().getId(), realtimePayload);
+		realtimeChatService.sendToUser(room.getUser2().getId(), realtimePayload);
 
 		// 3. Ekrana dön
 		DtoMessage dto = new DtoMessage();

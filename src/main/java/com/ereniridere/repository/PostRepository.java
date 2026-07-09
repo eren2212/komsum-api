@@ -5,8 +5,10 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ereniridere.entity.Post;
 import com.ereniridere.entity.enums.PostType;
@@ -65,4 +67,11 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 	@Query("SELECT p FROM Post p JOIN FETCH p.author a JOIN FETCH p.neighborhood "
 			+ "LEFT JOIN FETCH a.merchantProfile WHERE p.id IN :ids")
 	List<Post> findAllByIdInWithFetch(@Param("ids") List<Integer> ids);
+
+	// Hesap silme: kullanıcının yazdığı tüm postları sil.
+	// (Önce bu postlara ait yorum/beğeniler temizlenmiş olmalı — FK kısıtı.)
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM Post p WHERE p.author.id = :userId")
+	void deleteAllByAuthorId(@Param("userId") Integer userId);
 }
