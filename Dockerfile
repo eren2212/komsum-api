@@ -1,12 +1,16 @@
-# 1. Aşama: Projeyi derle (Maven kullanarak)
-FROM maven:3.8.5-openjdk-17 AS build
+# ---- Derleme ----
+FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
-COPY . .
-RUN mvn clean package -DskipTests
+COPY pom.xml .
+COPY src ./src
+RUN --mount=type=cache,target=/root/.m2 mvn -B clean package -DskipTests
 
-# 2. Aşama: Sadece derlenen dosyayı al ve çalıştır
-FROM openjdk:17.0.1-jdk-slim
+# ---- Çalıştırma ----
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
+ENV TZ=Europe/Istanbul
+RUN groupadd -r spring && useradd -r -g spring spring
 COPY --from=build /app/target/*.jar app.jar
+USER spring
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["java","-XX:MaxRAMPercentage=65","-Duser.timezone=Europe/Istanbul","-jar","app.jar"]

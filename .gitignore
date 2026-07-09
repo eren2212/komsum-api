@@ -60,3 +60,5 @@ desktop.ini
 ### Testing ###
 # JUnit veya Selenium raporları oluşursa
 /test-output/
+
+.env
