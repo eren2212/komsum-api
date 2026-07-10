@@ -6,9 +6,10 @@ import java.util.Map;
 /**
  * Expo Push Service (exp.host) üzerinden bildirim gönderimi.
  *
- * iOS istemcisi native Firebase SDK'sı taşımadığı için push token'ını Expo'dan
- * alır ("ExponentPushToken[...]" formatında). Bu token'lara gönderim FCM ile
- * değil, Expo'nun push API'si üzerinden yapılır; Expo mesajı APNs'e iletir.
+ * Mobil istemci (iOS ve Android) push token'ını Expo'dan alır
+ * ("ExponentPushToken[...]" formatında). Gönderim Expo'nun push API'si üzerinden
+ * yapılır; Expo mesajı iOS'ta APNs'e, Android'de FCM'e iletir. Sunucunun kendi
+ * Firebase kimlik bilgilerini taşımasına gerek yoktur.
  */
 public interface IExpoPushService {
 

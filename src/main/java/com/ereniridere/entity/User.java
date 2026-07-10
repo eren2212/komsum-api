@@ -80,7 +80,8 @@ public class User implements UserDetails {
 	// 4. Spam Engellemek İçin Son Mahalle Değiştirme Tarihi
 	private LocalDateTime lastNeighborhoodChange;
 
-	// 5. Firebase Cloud Messaging Token (Push bildirim hedefi). Logout'ta null'lanır.
+	// 5. Expo push token (Push bildirim hedefi, "ExponentPushToken[...]"). Logout'ta null'lanır.
+	// Not: alan/kolon adı geçmişten kalma "fcm" ismini taşır; içeriği artık Expo token'dır.
 	@Column(name = "fcm_token", length = 500)
 	private String fcmToken;
 

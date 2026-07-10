@@ -6,9 +6,8 @@ import java.util.Map;
 /**
  * Push bildirimlerinin tek giriş noktası.
  *
- * Token formatına göre doğru kanala yönlendirir:
- * - "ExponentPushToken[...]" → Expo Push Service (iOS istemcisi)
- * - diğerleri → FCM (Android istemcisi, Firebase device token)
+ * Tüm gönderimler Expo Push Service'e ("ExponentPushToken[...]") gider;
+ * Expo mesajı iOS'ta APNs'e, Android'de FCM'e iletir.
  */
 public interface IPushService {
 

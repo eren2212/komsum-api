@@ -223,7 +223,7 @@ MINIO_ROOT_PASSWORD=CokGuclu_Minio_Sifresi_2026!
 **Ne yapıyoruz:** Uygulamanın veritabanı ve dosya deposu bilgilerini koddan değil, ortam değişkenlerinden okumasını sağlıyoruz.
 **Neden:** Aynı `.jar` dosyası hiç değişmeden hem local'de hem sunucuda çalışmalı. Tek değişen, ortam değişkenleri olmalı (12-factor app prensibi).
 
-Bu projede `src/main/resources/application.yml` aşağıdaki gibi olmalı. Daha önce Supabase'e bakan `datasource` ve `supabase:` bloğu; artık kendi PostgreSQL'imize ve MinIO'muza bakıyor. Mail ve Firebase dış servis oldukları için aynen korunur:
+Bu projede `src/main/resources/application.yml` aşağıdaki gibi olmalı. Daha önce Supabase'e bakan `datasource` ve `supabase:` bloğu; artık kendi PostgreSQL'imize ve MinIO'muza bakıyor. Mail dış servis olduğu için aynen korunur. Push bildirimi Expo Push Service üzerinden gider ve kimlik bilgisi gerektirmez — sunucuda Firebase yapılandırması yoktur:
 
 ```yaml
 server:
@@ -272,9 +272,6 @@ storage:
   bucket: ${STORAGE_BUCKET:komsum-images}
   region: ${STORAGE_REGION:us-east-1}
   path-style-access: true       # MinIO için zorunlu (S3 SDK'da forcePathStyle=true)
-
-firebase:
-  service-account-base64: ${FIREBASE_SERVICE_ACCOUNT_BASE64:}
 ```
 
 > Spring Boot, `SPRING_DATASOURCE_URL` gibi büyük harfli ortam değişkenlerini otomatik olarak `spring.datasource.url`'e eşler. Compose'da bu değişkenleri verdiğimizde uygulama kendiliğinden okur, yml'deki varsayılanı ezer.

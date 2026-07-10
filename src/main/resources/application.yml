@@ -54,6 +54,3 @@ storage:
   region: ${STORAGE_REGION:us-east-1}
   # MinIO yol-stili adresleme gerektirir; AWS S3 SDK'da forcePathStyle=true demektir.
   path-style-access: true
-
-firebase:
-  service-account-base64: ${FIREBASE_SERVICE_ACCOUNT_BASE64:}
