@@ -37,8 +37,8 @@ import com.ereniridere.repository.EventRepository;
 import com.ereniridere.repository.NotificationRepository;
 import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.UserRepository;
-import com.ereniridere.service.IFcmService;
 import com.ereniridere.service.INotificationService;
+import com.ereniridere.service.IPushService;
 
 @Service
 public class NotificationServiceImpl implements INotificationService {
@@ -60,7 +60,7 @@ public class NotificationServiceImpl implements INotificationService {
 	private EventRepository eventRepository;
 
 	@Autowired
-	private IFcmService fcmService;
+	private IPushService pushService;
 
 	// ============================
 	// EVENT LISTENERS (ASYNC)
@@ -116,7 +116,7 @@ public class NotificationServiceImpl implements INotificationService {
 			notificationRepository.saveAll(notifications);
 			log.info("Post bildirimi — DB'ye {} kayıt yazıldı, {} FCM token'a gönderim deneniyor",
 					notifications.size(), tokens.size());
-			fcmService.sendToTokens(tokens, title, body, data);
+			pushService.sendToTokens(tokens, title, body, data);
 		} catch (Exception e) {
 			log.error("Post bildirimi gönderilemedi", e);
 		}
@@ -172,7 +172,7 @@ public class NotificationServiceImpl implements INotificationService {
 			notificationRepository.saveAll(notifications);
 			log.info("Etkinlik bildirimi — DB'ye {} kayıt yazıldı, {} FCM token'a gönderim deneniyor",
 					notifications.size(), tokens.size());
-			fcmService.sendToTokens(tokens, title, body, data);
+			pushService.sendToTokens(tokens, title, body, data);
 		} catch (Exception e) {
 			log.error("Etkinlik bildirimi gönderilemedi", e);
 		}
@@ -208,7 +208,7 @@ public class NotificationServiceImpl implements INotificationService {
 			notificationRepository.save(notification);
 
 			if (recipient.getFcmToken() != null && !recipient.getFcmToken().isBlank()) {
-				fcmService.sendToToken(recipient.getFcmToken(), title, body, data);
+				pushService.sendToToken(recipient.getFcmToken(), title, body, data);
 			}
 		} catch (Exception e) {
 			log.error("Mesaj bildirimi gönderilemedi", e);
