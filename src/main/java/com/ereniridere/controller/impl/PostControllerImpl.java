@@ -16,6 +16,7 @@ import com.ereniridere.controller.IPostController;
 import com.ereniridere.dto.request.post.DtoCreatePost;
 import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
+import com.ereniridere.dto.response.post.DtoPostSlice;
 import com.ereniridere.dto.response.post.DtoToggleLike;
 import com.ereniridere.entity.RootEntity;
 import com.ereniridere.entity.User;
@@ -69,20 +70,37 @@ public class PostControllerImpl extends BaseController implements IPostControlle
 		return ok(postService.deletePost(userId, postId));
 	}
 
-	// ANA AKIŞ: Kendi postlarım gizli.
+	// PART 2: Akışta okunmamış (en son görülenden sonraki) yeni post sayısı — rozet için.
+	@GetMapping(path = "/feed/new-count")
+	@Override
+	public RootEntity<Long> getNewPostCount() {
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		return ok(postService.getNewPostCount(currentUser.getId()));
+	}
+
+	// PART 2: "En son görülen" işaretini ilerlet (pull-to-refresh / "N yeni gönderi" tıklaması).
+	@PostMapping(path = "/feed/mark-seen/{postId}")
+	@Override
+	public RootEntity<Boolean> markFeedSeen(@PathVariable("postId") Integer postId) {
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		return ok(postService.markFeedSeen(currentUser.getId(), postId));
+	}
+
+	// ANA AKIŞ: Kendi postların da dahil (PART 3). Cursor (keyset) tabanlı — offset yok.
+	// cursor: bir önceki dilimin nextCursor'u; ilk sayfada gönderilmez (null).
 	// type=SPONSORED + lat/lng verilirse radius (metre) bazlı yakınlık filtresi uygulanır;
-	// aksi halde mevcut mahalle bazlı davranış korunur (lat/lng/radius opsiyonel = geriye uyumlu).
+	// aksi halde saf kronolojik keyset akış (lat/lng/radius opsiyonel).
 	@GetMapping(path = "/feed")
 	@Override
-	public RootEntity<Page<DtoPost>> getFeed(@RequestParam(required = false) PostType type,
+	public RootEntity<DtoPostSlice> getFeed(@RequestParam(required = false) PostType type,
 			@RequestParam(required = false) Double lat, @RequestParam(required = false) Double lng,
-			@RequestParam(defaultValue = "5000") Integer radius, @RequestParam(defaultValue = "0") Integer pageNo,
+			@RequestParam(defaultValue = "5000") Integer radius, @RequestParam(required = false) String cursor,
 			@RequestParam(defaultValue = "10") Integer pageSize) {
 
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		Integer userId = currentUser.getId();
 
-		return ok(postService.getNeighborhoodFeed(userId, type, lat, lng, radius, pageNo, pageSize));
+		return ok(postService.getNeighborhoodFeed(userId, type, lat, lng, radius, cursor, pageSize));
 	}
 
 	// NORMAL PROFİLİM: Kendi bireysel postlarım

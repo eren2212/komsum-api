@@ -1,5 +1,6 @@
 package com.ereniridere.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import com.ereniridere.dto.request.post.DtoCreatePost;
 import com.ereniridere.dto.request.post.DtoUpdatePost;
 import com.ereniridere.dto.response.post.DtoPost;
+import com.ereniridere.dto.response.post.DtoPostSlice;
 import com.ereniridere.dto.response.post.DtoToggleLike;
 import com.ereniridere.entity.MerchantProfile;
 import com.ereniridere.entity.Post;
@@ -191,10 +193,10 @@ public class PostServiceImpl implements IPostService {
 		return true;
 	}
 
-	// 3. ANA AKIŞ (DİNAMİK FİLTRELİ)
+	// 3. ANA AKIŞ (DİNAMİK FİLTRELİ) — cursor (keyset) tabanlı
 	@Override
-	public Page<DtoPost> getNeighborhoodFeed(Integer userId, PostType type, Double lat, Double lng, Integer radius,
-			int pageNo, int pageSize) {
+	public DtoPostSlice getNeighborhoodFeed(Integer userId, PostType type, Double lat, Double lng, Integer radius,
+			String cursor, int pageSize) {
 		User dbUser = userRepository.findById(userId).orElseThrow(
 				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
 
@@ -203,18 +205,92 @@ public class PostServiceImpl implements IPostService {
 					"Kanzi bir mahalleye kayıt olmadan duvarı göremezsin!"));
 		}
 
-		Pageable pageable = PageRequest.of(pageNo, pageSize);
-
-		// 🚨 SPONSORED + konum varsa: yakınlık (radius) bazlı esnaf akışı (iki-adımlı)
+		// 🚨 SPONSORED + konum varsa: yakınlık (radius) bazlı esnaf akışı (iki-adımlı).
+		// Bu akış mesafe sıralı olduğundan keyset uygulanamaz; mevcut offset davranışını
+		// koruyup opak sayfa-numarası cursor'u ile aynı slice sözleşmesine sarmalıyoruz.
 		if (type == PostType.SPONSORED && lat != null && lng != null) {
-			return getSponsoredNearbyFeed(userId, lat, lng, radius, pageable);
+			int pageNo = parsePageCursor(cursor);
+			Page<DtoPost> page = getSponsoredNearbyFeed(userId, lat, lng, radius, PageRequest.of(pageNo, pageSize));
+			return DtoPostSlice.builder().content(page.getContent())
+					.nextCursor(page.hasNext() ? String.valueOf(pageNo + 1) : null).hasNext(page.hasNext()).build();
 		}
 
-		// Aksi halde mevcut mahalle bazlı davranış (DEĞİŞMEDİ)
-		Page<Post> postPage = postRepository.getNeighborhoodFeedExcludingMe(dbUser.getNeighborhood().getId(), userId,
-				type, pageable);
+		// Standart kronolojik akış → keyset. Cursor "createdAt|id" formatında (ilk sayfada null).
+		LocalDateTime cursorTime = null;
+		Integer cursorId = null;
+		if (cursor != null && !cursor.isBlank()) {
+			int sep = cursor.lastIndexOf('|');
+			if (sep > 0) {
+				cursorTime = LocalDateTime.parse(cursor.substring(0, sep));
+				cursorId = Integer.parseInt(cursor.substring(sep + 1));
+			}
+		}
 
-		return postPage.map(post -> convertToDto(post, userId));
+		// hasNext'i tespit etmek için 1 fazla çek; fazlaysa son elemanı at.
+		List<Post> rows = postRepository.getNeighborhoodFeedKeyset(dbUser.getNeighborhood().getId(), type,
+				cursorTime, cursorId, PageRequest.of(0, pageSize + 1));
+
+		boolean hasNext = rows.size() > pageSize;
+		if (hasNext) {
+			rows = rows.subList(0, pageSize);
+		}
+
+		List<DtoPost> dtos = rows.stream().map(post -> convertToDto(post, userId)).collect(Collectors.toList());
+
+		String nextCursor = null;
+		if (hasNext && !rows.isEmpty()) {
+			Post lastRow = rows.get(rows.size() - 1);
+			nextCursor = lastRow.getCreatedAt().toString() + "|" + lastRow.getId();
+		}
+
+		return DtoPostSlice.builder().content(dtos).nextCursor(nextCursor).hasNext(hasNext).build();
+	}
+
+	// PART 2: "En son görülenden bu yana kaç yeni post" (mahalle scope'u, kendi postlarım hariç)
+	@Override
+	public long getNewPostCount(Integer userId) {
+		User dbUser = userRepository.findById(userId).orElseThrow(
+				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
+
+		if (dbUser.getNeighborhood() == null) {
+			return 0;
+		}
+		Integer neighborhoodId = dbUser.getNeighborhood().getId();
+
+		// İlk kez: taban çizgisi henüz yok → şu anki en yeni post'a sabitle ve 0 dön
+		// (kullanıcı akışı ilk açtığında koca bir "N yeni" rozeti görmesin).
+		if (dbUser.getLastSeenPostId() == null) {
+			Integer maxId = postRepository.findMaxPostIdInScope(neighborhoodId, userId);
+			if (maxId != null) {
+				userRepository.advanceLastSeenPostId(userId, maxId);
+			}
+			return 0;
+		}
+
+		return postRepository.countNewPostsSince(neighborhoodId, userId, dbUser.getLastSeenPostId());
+	}
+
+	// PART 2: "En son görülen" işaretini ilerlet (geri gitmez).
+	@Override
+	public boolean markFeedSeen(Integer userId, Integer postId) {
+		if (postId == null || postId <= 0) {
+			return false;
+		}
+		userRepository.advanceLastSeenPostId(userId, postId);
+		return true;
+	}
+
+	// Sponsorlu yakınlık akışının opak cursor'u yalnızca sayfa numarası taşır.
+	private int parsePageCursor(String cursor) {
+		if (cursor == null || cursor.isBlank()) {
+			return 0;
+		}
+		try {
+			int page = Integer.parseInt(cursor.trim());
+			return page < 0 ? 0 : page;
+		} catch (NumberFormatException e) {
+			return 0;
+		}
 	}
 
 	// 🚨 SPONSORED YAKINLIK AKIŞI: native ID sorgusu + JOIN FETCH hidrasyonu (N+1 yok)

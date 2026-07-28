@@ -85,6 +85,13 @@ public class User implements UserDetails {
 	@Column(name = "fcm_token", length = 500)
 	private String fcmToken;
 
+	// 5.1 Mahalle akışında "en son görülen" post id'si (high-water mark).
+	// Feed keyset sıralaması (createdAt, id) ile örtüşür; id monoton arttığı için
+	// "kaç yeni post var" = scope içinde id > lastSeenPostId olanların sayısı.
+	// null = kullanıcı akışı henüz hiç görmedi (ilk new-count çağrısında taban çizgisi kurulur).
+	@Column(name = "last_seen_post_id")
+	private Integer lastSeenPostId;
+
 	// 6. Bildirim tercihleri — null = "açık" (geriye dönük uyumluluk için
 	// nullable bırakıyoruz; mevcut satırlar otomatik açık sayılır)
 	@Builder.Default

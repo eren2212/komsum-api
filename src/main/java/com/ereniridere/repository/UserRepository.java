@@ -34,4 +34,12 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 	@Query("UPDATE User u SET u.fcmToken = NULL WHERE u.fcmToken = :token")
 	void clearFcmToken(@Param("token") String token);
 
+	// PART 2: "En son görülen" işaretini yalnızca İLERİ taşı (geri gitmesin).
+	// Mevcut değer null ise veya verilenden küçükse günceller.
+	@Modifying
+	@Transactional
+	@Query("UPDATE User u SET u.lastSeenPostId = :postId "
+			+ "WHERE u.id = :userId AND (u.lastSeenPostId IS NULL OR u.lastSeenPostId < :postId)")
+	int advanceLastSeenPostId(@Param("userId") Integer userId, @Param("postId") Integer postId);
+
 }

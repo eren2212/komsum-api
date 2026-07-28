@@ -15,14 +15,25 @@ import com.ereniridere.entity.enums.PostType;
 
 public interface PostRepository extends JpaRepository<Post, Integer> {
 
-	// 🚨 ÇÖZÜM 1: JOIN FETCH İLE TEK SORGUDA BÜTÜN İLİŞKİLERİ ÇEKİYORUZ 🚨
+	// 🚨 KEYSET (CURSOR) FEED: JOIN FETCH ile tek sorguda bütün ilişkiler (N+1 yok) 🚨
+	// Offset yerine sıralama anahtarından (createdAt, id) devam eder: araya kaç yeni
+	// post girerse girsin duplicate/atlama olmaz. Sıralama SAF kronolojik olmalı ki
+	// cursor karşılaştırması ORDER BY ile birebir örtüşsün (SPONSORED float YOK).
+	// cursorTime null ise ilk sayfadır (en yeniden başlar); değilse cursor'dan
+	// (createdAt, id) ikilisinden kesinlikle daha eski olan postlar gelir.
+	// PART 3: Kendi postların da akışta görünür (dışlama YOK) — paylaşınca en tepede.
 	@Query("SELECT p FROM Post p " + "JOIN FETCH p.author a " + "JOIN FETCH p.neighborhood n "
 			+ "LEFT JOIN FETCH a.merchantProfile m "
-			+ "WHERE n.id = :neighborhoodId AND p.isActive = true AND a.id != :userId "
+			+ "WHERE n.id = :neighborhoodId AND p.isActive = true "
 			+ "AND (:type IS NULL OR p.type = :type) "
-			+ "ORDER BY CASE WHEN p.type = com.ereniridere.entity.enums.PostType.SPONSORED THEN 1 ELSE 2 END, p.createdAt DESC")
-	Page<Post> getNeighborhoodFeedExcludingMe(@Param("neighborhoodId") Integer neighborhoodId,
-			@Param("userId") Integer userId, @Param("type") PostType type, Pageable pageable);
+			+ "AND (:cursorTime IS NULL "
+			+ "     OR p.createdAt < :cursorTime "
+			+ "     OR (p.createdAt = :cursorTime AND p.id < :cursorId)) "
+			+ "ORDER BY p.createdAt DESC, p.id DESC")
+	List<Post> getNeighborhoodFeedKeyset(@Param("neighborhoodId") Integer neighborhoodId,
+			@Param("type") PostType type,
+			@Param("cursorTime") java.time.LocalDateTime cursorTime, @Param("cursorId") Integer cursorId,
+			Pageable pageable);
 
 	// 2. KENDİ BİREYSEL POSTLARIM (Buna da JOIN FETCH ekledik hızlansın diye)
 	@Query("SELECT p FROM Post p " + "JOIN FETCH p.author a " + "JOIN FETCH p.neighborhood n "
@@ -67,6 +78,19 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 	@Query("SELECT p FROM Post p JOIN FETCH p.author a JOIN FETCH p.neighborhood "
 			+ "LEFT JOIN FETCH a.merchantProfile WHERE p.id IN :ids")
 	List<Post> findAllByIdInWithFetch(@Param("ids") List<Integer> ids);
+
+	// 🚨 PART 2: "Kaç yeni post var" — mahalle scope'unda (aktif, kendi postların hariç)
+	// id'si verilen high-water mark'tan büyük olanların sayısı. id monoton arttığı için
+	// createdAt yerine id ile saymak yeterli ve daha ucuz.
+	@Query("SELECT COUNT(p) FROM Post p WHERE p.neighborhood.id = :neighborhoodId "
+			+ "AND p.isActive = true AND p.author.id <> :userId AND p.id > :sinceId")
+	long countNewPostsSince(@Param("neighborhoodId") Integer neighborhoodId, @Param("userId") Integer userId,
+			@Param("sinceId") Integer sinceId);
+
+	// Taban çizgisi kurmak için: scope içindeki en büyük (en yeni) post id'si. Post yoksa null.
+	@Query("SELECT MAX(p.id) FROM Post p WHERE p.neighborhood.id = :neighborhoodId "
+			+ "AND p.isActive = true AND p.author.id <> :userId")
+	Integer findMaxPostIdInScope(@Param("neighborhoodId") Integer neighborhoodId, @Param("userId") Integer userId);
 
 	// Hesap silme: kullanıcının yazdığı tüm postları sil.
 	// (Önce bu postlara ait yorum/beğeniler temizlenmiş olmalı — FK kısıtı.)
