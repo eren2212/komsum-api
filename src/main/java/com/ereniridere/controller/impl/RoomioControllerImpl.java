@@ -19,6 +19,7 @@ import com.ereniridere.controller.IRoomioController;
 import com.ereniridere.dto.request.roomio.DtoCreateRoomioProfile;
 import com.ereniridere.dto.request.roomio.DtoSwipe;
 import com.ereniridere.dto.request.roomio.DtoUpdateRoomioProfile;
+import com.ereniridere.dto.response.roomio.DtoRoomioMatch;
 import com.ereniridere.dto.response.roomio.DtoRoomioProfile;
 import com.ereniridere.dto.response.roomio.DtoSwipeResult;
 import com.ereniridere.entity.RootEntity;
@@ -91,6 +92,14 @@ public class RoomioControllerImpl extends BaseController implements IRoomioContr
 		}
 
 		return ok(roomioService.swipe(userId, request));
+	}
+
+	@GetMapping(path = "/matches")
+	@Override
+	public RootEntity<Page<DtoRoomioMatch>> getMyMatches(@RequestParam(defaultValue = "0") int pageNo,
+			@RequestParam(defaultValue = "20") int pageSize) {
+		Integer userId = currentUserId();
+		return ok(roomioService.getMyMatches(userId, pageNo, pageSize));
 	}
 
 	private Integer currentUserId() {

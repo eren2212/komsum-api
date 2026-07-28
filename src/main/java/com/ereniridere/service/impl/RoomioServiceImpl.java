@@ -19,9 +19,11 @@ import com.ereniridere.dto.request.roomio.DtoCreateRoomioProfile;
 import com.ereniridere.dto.request.roomio.DtoSwipe;
 import com.ereniridere.dto.request.roomio.DtoUpdateRoomioProfile;
 import com.ereniridere.dto.response.message.DtoChatRoom;
+import com.ereniridere.dto.response.roomio.DtoRoomioMatch;
 import com.ereniridere.dto.response.roomio.DtoRoomioMatchPush;
 import com.ereniridere.dto.response.roomio.DtoRoomioProfile;
 import com.ereniridere.dto.response.roomio.DtoSwipeResult;
+import com.ereniridere.entity.ChatRoom;
 import com.ereniridere.entity.RoomioMatch;
 import com.ereniridere.entity.RoomioProfile;
 import com.ereniridere.entity.RoomioProfilePhoto;
@@ -32,6 +34,8 @@ import com.ereniridere.event.RoomioMatchEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
+import com.ereniridere.repository.ChatRoomRepository;
+import com.ereniridere.repository.MessageRepository;
 import com.ereniridere.repository.RoomioMatchRepository;
 import com.ereniridere.repository.RoomioProfileRepository;
 import com.ereniridere.repository.RoomioSwipeRepository;
@@ -63,6 +67,12 @@ public class RoomioServiceImpl implements IRoomioService {
 
 	@Autowired
 	private IRealtimeChatService realtimeChatService;
+
+	@Autowired
+	private ChatRoomRepository chatRoomRepository;
+
+	@Autowired
+	private MessageRepository messageRepository;
 
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
@@ -249,6 +259,36 @@ public class RoomioServiceImpl implements IRoomioService {
 		result.setMatchedUser(getProfileForUser(targetId));
 
 		return result;
+	}
+
+	@Override
+	public Page<DtoRoomioMatch> getMyMatches(Integer userId, int pageNo, int pageSize) {
+		Pageable pageable = PageRequest.of(pageNo, pageSize);
+		Page<RoomioMatch> matches = roomioMatchRepository.findAllByParticipant(userId, pageable);
+
+		return matches.map(match -> toDtoRoomioMatch(match, userId));
+	}
+
+	private DtoRoomioMatch toDtoRoomioMatch(RoomioMatch match, Integer currentUserId) {
+		User other = match.getUserA().getId().equals(currentUserId) ? match.getUserB() : match.getUserA();
+
+		DtoRoomioMatch dto = new DtoRoomioMatch();
+		dto.setMatchId(match.getId());
+		dto.setChatRoomId(match.getChatRoomId());
+		dto.setOtherUserId(other.getId());
+		dto.setOtherUserFirstName(other.getFirstname());
+		dto.setOtherUserLastName(other.getLastname());
+		dto.setOtherUserAvatarUrl(other.getAvatarUrl());
+		dto.setMatchedAt(match.getCreatedAt());
+
+		ChatRoom room = chatRoomRepository.findById(match.getChatRoomId()).orElse(null);
+		if (room != null) {
+			dto.setLastMessageContent(room.getLastMessageContent());
+			dto.setLastMessageAt(room.getLastMessageAt());
+			dto.setUnreadCount((int) messageRepository.countUnreadMessages(room.getId(), currentUserId));
+		}
+
+		return dto;
 	}
 
 	private void sendMatchPush(RoomioMatch match, Integer recipientId, Integer otherUserId) {

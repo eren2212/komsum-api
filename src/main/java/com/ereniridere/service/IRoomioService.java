@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import com.ereniridere.dto.request.roomio.DtoCreateRoomioProfile;
 import com.ereniridere.dto.request.roomio.DtoSwipe;
 import com.ereniridere.dto.request.roomio.DtoUpdateRoomioProfile;
+import com.ereniridere.dto.response.roomio.DtoRoomioMatch;
 import com.ereniridere.dto.response.roomio.DtoRoomioProfile;
 import com.ereniridere.dto.response.roomio.DtoSwipeResult;
 
@@ -27,4 +28,7 @@ public interface IRoomioService {
 
 	// 6. Kaydırma işlemi (LIKE/PASS) — karşılıklı LIKE varsa eşleşme + sohbet odası açar
 	public DtoSwipeResult swipe(Integer swiperId, DtoSwipe request);
+
+	// 7. Roomio "Mesajlar" sekmesi: benim taraf olduğum tüm eşleşmeler (sohbet önizlemesiyle)
+	public Page<DtoRoomioMatch> getMyMatches(Integer userId, int pageNo, int pageSize);
 }
