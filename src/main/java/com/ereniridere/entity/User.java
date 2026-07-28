@@ -106,6 +106,12 @@ public class User implements UserDetails {
 	@Column(name = "message_notifications_enabled")
 	private Boolean messageNotificationsEnabled = true;
 
+	// Roomio eşleşme bildirimi tercihi — mesaj bildiriminden ayrı tutulur, kullanıcı
+	// birini kapatıp diğerini açık bırakabilsin diye.
+	@Builder.Default
+	@Column(name = "roomio_match_notifications_enabled")
+	private Boolean roomioMatchNotificationsEnabled = true;
+
 	// --- SPRING SECURITY METODLARI (Aşağısı eskisi gibi kalacak) ---
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {

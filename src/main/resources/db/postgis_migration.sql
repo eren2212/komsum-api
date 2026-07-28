@@ -55,6 +55,13 @@ CREATE INDEX IF NOT EXISTS idx_merchant_geo_location_geog
 CREATE INDEX IF NOT EXISTS idx_service_provider_geo_location_geog
   ON service_provider_profiles USING GIST ((geo_location::geography));
 
+-- Roomio (roomio_profiles) tablosu da aynı şekilde geometry(Point,4326) geo_location
+-- taşır. Aday akışı MAHALLE değil YARIÇAP (ST_DWithin, metre) bazlı filtre yapar,
+-- bu yüzden index burada da şart. Tablo ddl-auto=update ile otomatik oluşur —
+-- uygulamayı bir kez ayağa kaldırdıktan sonra bu index'i çalıştır.
+CREATE INDEX IF NOT EXISTS idx_roomio_profiles_geo_location_geog
+  ON roomio_profiles USING GIST ((geo_location::geography));
+
 -- (Opsiyonel) İstatistikleri tazele:
 -- ANALYZE events;
 -- ANALYZE merchant_profiles;

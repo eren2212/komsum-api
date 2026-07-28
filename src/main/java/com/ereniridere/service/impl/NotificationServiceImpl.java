@@ -24,18 +24,21 @@ import com.ereniridere.entity.Event;
 import com.ereniridere.entity.Message;
 import com.ereniridere.entity.Notification;
 import com.ereniridere.entity.Post;
+import com.ereniridere.entity.RoomioMatch;
 import com.ereniridere.entity.User;
 import com.ereniridere.entity.enums.NotificationType;
 import com.ereniridere.entity.enums.RelatedEntityType;
 import com.ereniridere.event.EventCreatedEvent;
 import com.ereniridere.event.MessageSentEvent;
 import com.ereniridere.event.PostCreatedEvent;
+import com.ereniridere.event.RoomioMatchEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
 import com.ereniridere.repository.EventRepository;
 import com.ereniridere.repository.NotificationRepository;
 import com.ereniridere.repository.PostRepository;
+import com.ereniridere.repository.RoomioMatchRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.INotificationService;
 import com.ereniridere.service.IPushService;
@@ -58,6 +61,9 @@ public class NotificationServiceImpl implements INotificationService {
 
 	@Autowired
 	private EventRepository eventRepository;
+
+	@Autowired
+	private RoomioMatchRepository roomioMatchRepository;
 
 	@Autowired
 	private IPushService pushService;
@@ -212,6 +218,45 @@ public class NotificationServiceImpl implements INotificationService {
 			}
 		} catch (Exception e) {
 			log.error("Mesaj bildirimi gönderilemedi", e);
+		}
+	}
+
+	@Async("notificationExecutor")
+	@EventListener
+	@Transactional
+	public void handleRoomioMatch(RoomioMatchEvent event) {
+		try {
+			// Fresh fetch — async thread kendi transaction'ında lazy proxy'ler çözülemez
+			RoomioMatch match = roomioMatchRepository.findById(event.getMatchId()).orElse(null);
+			if (match == null) {
+				log.warn("Roomio eşleşme bildirimi atlandı: eşleşme bulunamadı (matchId={})", event.getMatchId());
+				return;
+			}
+
+			notifyRoomioMatchSide(match.getUserA(), match.getUserB(), match.getChatRoomId());
+			notifyRoomioMatchSide(match.getUserB(), match.getUserA(), match.getChatRoomId());
+		} catch (Exception e) {
+			log.error("Roomio eşleşme bildirimi gönderilemedi", e);
+		}
+	}
+
+	private void notifyRoomioMatchSide(User recipient, User actor, Integer chatRoomId) {
+		if (Boolean.FALSE.equals(recipient.getRoomioMatchNotificationsEnabled())) {
+			return;
+		}
+
+		String title = "Yeni bir Roomio eşleşmen var! 🎉";
+		String body = actor.getFirstname() + " ile eşleştin. Sohbete başla!";
+
+		Map<String, String> data = baseData(NotificationType.ROOMIO_MATCH, RelatedEntityType.CHAT_ROOM,
+				chatRoomId.longValue(), actor);
+
+		Notification notification = buildNotification(recipient, actor, NotificationType.ROOMIO_MATCH, title, body,
+				RelatedEntityType.CHAT_ROOM, chatRoomId.longValue());
+		notificationRepository.save(notification);
+
+		if (recipient.getFcmToken() != null && !recipient.getFcmToken().isBlank()) {
+			pushService.sendToToken(recipient.getFcmToken(), title, body, data);
 		}
 	}
 

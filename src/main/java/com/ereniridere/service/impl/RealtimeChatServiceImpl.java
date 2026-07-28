@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.ereniridere.dto.response.message.DtoRealtimeMessage;
+import com.ereniridere.dto.response.roomio.DtoRoomioMatchPush;
 import com.ereniridere.service.IRealtimeChatService;
 
 @Service
@@ -62,6 +63,22 @@ public class RealtimeChatServiceImpl implements IRealtimeChatService {
 				emitter.send(SseEmitter.event().name("message").data(payload));
 			} catch (Exception e) {
 				// Bağlantı ölmüş; listeden çıkar.
+				removeEmitter(userId, emitter);
+			}
+		}
+	}
+
+	@Override
+	public void sendRoomioMatchToUser(Integer userId, DtoRoomioMatchPush payload) {
+		List<SseEmitter> userEmitters = emitters.get(userId);
+		if (userEmitters == null || userEmitters.isEmpty()) {
+			return; // Kullanıcının açık bağlantısı yok (offline) — push bildirimi zaten devrede.
+		}
+
+		for (SseEmitter emitter : userEmitters) {
+			try {
+				emitter.send(SseEmitter.event().name("roomio_match").data(payload));
+			} catch (Exception e) {
 				removeEmitter(userId, emitter);
 			}
 		}
