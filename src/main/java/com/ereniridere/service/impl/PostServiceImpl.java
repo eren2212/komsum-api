@@ -227,8 +227,13 @@ public class PostServiceImpl implements IPostService {
 		}
 
 		// hasNext'i tespit etmek için 1 fazla çek; fazlaysa son elemanı at.
-		List<Post> rows = postRepository.getNeighborhoodFeedKeyset(dbUser.getNeighborhood().getId(), type,
-				cursorTime, cursorId, PageRequest.of(0, pageSize + 1));
+		// cursorTime null ise (ilk sayfa) ayrı bir sorguya gidiyoruz — bkz. PostRepository'deki not
+		// (PostgreSQL, TIMESTAMP parametresinin ":x IS NULL" dalında tipini çıkaramıyor).
+		List<Post> rows = cursorTime == null
+				? postRepository.getNeighborhoodFeedFirstPage(dbUser.getNeighborhood().getId(), type,
+						PageRequest.of(0, pageSize + 1))
+				: postRepository.getNeighborhoodFeedAfterCursor(dbUser.getNeighborhood().getId(), type, cursorTime,
+						cursorId, PageRequest.of(0, pageSize + 1));
 
 		boolean hasNext = rows.size() > pageSize;
 		if (hasNext) {

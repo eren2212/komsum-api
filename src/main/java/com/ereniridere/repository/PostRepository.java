@@ -19,21 +19,32 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 	// Offset yerine sıralama anahtarından (createdAt, id) devam eder: araya kaç yeni
 	// post girerse girsin duplicate/atlama olmaz. Sıralama SAF kronolojik olmalı ki
 	// cursor karşılaştırması ORDER BY ile birebir örtüşsün (SPONSORED float YOK).
-	// cursorTime null ise ilk sayfadır (en yeniden başlar); değilse cursor'dan
-	// (createdAt, id) ikilisinden kesinlikle daha eski olan postlar gelir.
 	// PART 3: Kendi postların da akışta görünür (dışlama YOK) — paylaşınca en tepede.
+	//
+	// İlk sayfa (cursor yok) ve sonraki sayfalar (cursor var) BİLEREK iki ayrı sorguya
+	// bölündü. Tek sorguda "(:cursorTime IS NULL OR p.createdAt < :cursorTime ...)"
+	// yazılırsa PostgreSQL bu TIMESTAMP parametresinin tipini çıkaramıyor ve
+	// "SQLState 42P18: could not determine data type of parameter" hatası atıyor
+	// (enum p.type için bu sorun yok çünkü onun tipi entity metadata'sından biliniyor).
+	// Bu sayede cursorTime her zaman gerçek bir değer olarak bağlanıyor, asla NULL değil.
 	@Query("SELECT p FROM Post p " + "JOIN FETCH p.author a " + "JOIN FETCH p.neighborhood n "
 			+ "LEFT JOIN FETCH a.merchantProfile m "
 			+ "WHERE n.id = :neighborhoodId AND p.isActive = true "
 			+ "AND (:type IS NULL OR p.type = :type) "
-			+ "AND (:cursorTime IS NULL "
-			+ "     OR p.createdAt < :cursorTime "
+			+ "ORDER BY p.createdAt DESC, p.id DESC")
+	List<Post> getNeighborhoodFeedFirstPage(@Param("neighborhoodId") Integer neighborhoodId,
+			@Param("type") PostType type, Pageable pageable);
+
+	@Query("SELECT p FROM Post p " + "JOIN FETCH p.author a " + "JOIN FETCH p.neighborhood n "
+			+ "LEFT JOIN FETCH a.merchantProfile m "
+			+ "WHERE n.id = :neighborhoodId AND p.isActive = true "
+			+ "AND (:type IS NULL OR p.type = :type) "
+			+ "AND (p.createdAt < :cursorTime "
 			+ "     OR (p.createdAt = :cursorTime AND p.id < :cursorId)) "
 			+ "ORDER BY p.createdAt DESC, p.id DESC")
-	List<Post> getNeighborhoodFeedKeyset(@Param("neighborhoodId") Integer neighborhoodId,
-			@Param("type") PostType type,
-			@Param("cursorTime") java.time.LocalDateTime cursorTime, @Param("cursorId") Integer cursorId,
-			Pageable pageable);
+	List<Post> getNeighborhoodFeedAfterCursor(@Param("neighborhoodId") Integer neighborhoodId,
+			@Param("type") PostType type, @Param("cursorTime") java.time.LocalDateTime cursorTime,
+			@Param("cursorId") Integer cursorId, Pageable pageable);
 
 	// 2. KENDİ BİREYSEL POSTLARIM (Buna da JOIN FETCH ekledik hızlansın diye)
 	@Query("SELECT p FROM Post p " + "JOIN FETCH p.author a " + "JOIN FETCH p.neighborhood n "
