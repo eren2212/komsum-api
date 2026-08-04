@@ -15,6 +15,14 @@ spring:
     # Tarihleri Türkiye saat diliminde seri hale getir (TimeZoneConfig ile tutarlı).
     time-zone: Europe/Istanbul
 
+  servlet:
+    multipart:
+      # Uygulama içi sınır 5 MB (StorageServiceImpl). Buradaki değer bilerek
+      # biraz yüksek: dosya servise ulaşsın ki kullanıcı Spring'in ham hatası
+      # yerine bizim anlaşılır Türkçe mesajımızı görsün.
+      max-file-size: 6MB
+      max-request-size: 12MB
+
   mail:
     host: smtp.gmail.com
     port: 587
