@@ -1,5 +1,6 @@
 package com.ereniridere.handler;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.ereniridere.exception.BaseException;
@@ -107,6 +109,23 @@ public class GlobalExceptionHandler {
 	}
 
 	/**
+	 * SSE istemcisi bağlantıyı kopardığında (uygulama arka plana alındı, ağ
+	 * değişti, ekran kapandı) sunucu yazmaya çalışırken bu istisna oluşur.
+	 *
+	 * Bu bir HATA DEĞİL, SSE'nin normal işleyişi. Aşağıdaki catch-all'a
+	 * düşerse iki sorun çıkıyor: (1) her kopuşta ERROR seviyesinde tam stack
+	 * trace log'a düşüyor, (2) yanıtın Content-Type'ı zaten
+	 * "text/event-stream" olduğu için ApiError'ı JSON olarak yazmaya çalışmak
+	 * ikinci bir hata (HttpMessageNotWritableException) üretiyor.
+	 *
+	 * Dönüş tipi void: istemci zaten gitmiş, yazılacak bir gövde yok.
+	 */
+	@ExceptionHandler(value = { AsyncRequestNotUsableException.class })
+	public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex) {
+		log.debug("SSE istemcisi baglantiyi kopardi: {}", ex.getMessage());
+	}
+
+	/**
 	 * Son savunma hattı: yakalanmamış her hata buraya düşer.
 	 *
 	 * Bu handler olmadan Spring'in varsayılan /error gövdesi devreye giriyordu;
@@ -137,10 +156,38 @@ public class GlobalExceptionHandler {
 		// sunucu loguna yazılır; istemciye istisna türü/mesajı sızdırılmaz.
 		log.error("Beklenmeyen hata: {}", webRequest.getDescription(false), ex);
 
+		// Bağlantı zaten koptuysa ya da yanıt SSE akışıysa JSON gövde yazmayı
+		// denemek anlamsız: ikinci bir istisna (HttpMessageNotWritableException)
+		// üretip asıl hatanın üstünü örter.
+		if (isClientGone(ex)) {
+			return null;
+		}
+
 		ApiError<String> error = createApiError("Beklenmeyen bir hata oluştu, lütfen tekrar deneyin.", webRequest);
 		error.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+	}
+
+	/**
+	 * İstemci bağlantıyı kopardı mı? Kopmuş bir sokete yazmaya çalışmak yeni
+	 * istisnalar doğurur, o yüzden gövdesiz dönmek gerekir.
+	 *
+	 * Kontrol bilerek dar: her IOException'ı kopma saymak, gerçek bir sunucu
+	 * IO hatasında istemciye boş 200 döndürürdü — sessiz başarısızlık, açık
+	 * hatadan çok daha kötü.
+	 */
+	private boolean isClientGone(Throwable ex) {
+		for (Throwable t = ex; t != null && t != t.getCause(); t = t.getCause()) {
+			if (t instanceof IOException && t.getMessage() != null) {
+				String message = t.getMessage().toLowerCase();
+				if (message.contains("broken pipe") || message.contains("connection reset")
+						|| message.contains("connection abort")) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public <E> ApiError<E> createApiError(E message, WebRequest request) {
