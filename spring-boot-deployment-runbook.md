@@ -212,9 +212,22 @@ POSTGRES_PASSWORD=BurayaCokGuclu_Bir_Sifre_2026!
 # MinIO (dosya deposu) yönetici bilgileri
 MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=CokGuclu_Minio_Sifresi_2026!
+
+# JWT imzalama anahtarı — ZORUNLU. Tanımlı değilse uygulama hiç açılmaz.
+# Üretmek için: openssl rand -base64 32
+JWT_SECRET=<openssl rand -base64 32 çıktısını buraya yapıştırın>
+
+# Mesaj şifreleme anahtarı (sohbet içerikleri) — üretimi JWT_SECRET ile aynı
+MESSAGE_ENCRYPTION_KEY=<openssl rand -base64 32 çıktısını buraya yapıştırın>
+
+# Gmail uygulama şifresi (e-posta gönderimi)
+MAIL_PASSWORD=<gmail-uygulama-sifresi>
 ```
 
 > `nano` editöründe kaydetmek için: `Ctrl+O` → Enter → `Ctrl+X`.
+>
+> **Uyarı:** `JWT_SECRET` değiştirildiğinde daha önce dağıtılmış tüm access/refresh
+> token'lar geçersiz olur; kullanıcılar bir kez yeniden giriş yapmak zorunda kalır.
 
 ---
 
@@ -399,6 +412,10 @@ services:
       STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
       STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       STORAGE_BUCKET: komsum-images
+      # Kimlik/şifreleme anahtarları — .env'den gelir, ZORUNLU
+      JWT_SECRET: ${JWT_SECRET}
+      MESSAGE_ENCRYPTION_KEY: ${MESSAGE_ENCRYPTION_KEY}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
     ports:
       - "8080:8080"                   # Dışarıdan 8080'e gelen, container'ın 8080'ine gider
     networks:

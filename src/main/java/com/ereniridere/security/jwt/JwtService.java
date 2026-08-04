@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -14,14 +15,42 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 
 @Service // Spring'e "Bu bir servistir, hafızaya al" diyoruz
 public class JwtService {
 
-	// 256-bit (32 byte) Base64 formatında gizli anahtarımız.
-	// Sektörde bu değer koda yazılmaz, .yml dosyasından gizlice okunur ama şimdilik
-	// öğrenmek için buraya koyuyoruz.
-	private static final String SECRET_KEY = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+	// 256-bit (32 byte) Base64 formatında gizli anahtar. Koda YAZILMAZ; ortam
+	// değişkeninden (JWT_SECRET) gelir. application.yml'de varsayılan değeri de
+	// yoktur — anahtar tanımlı değilse uygulama bilerek hiç açılmaz.
+	@Value("${application.security.jwt.secret-key}")
+	private String secretKey;
+
+	// Access token ömrü (ms). Varsayılan 24 saat.
+	@Value("${application.security.jwt.expiration}")
+	private long jwtExpiration;
+
+	// Refresh token ömrü (ms). Varsayılan 7 gün.
+	@Value("${application.security.jwt.refresh-token.expiration}")
+	private long refreshExpiration;
+
+	// Anahtar hatası ilk login denemesinde değil, uygulama açılışında patlasın.
+	// Base64 çözülemiyorsa ya da 256 bitten kısaysa (HS256'nın gerektirdiği
+	// minimum) uygulama hiç ayağa kalkmaz.
+	@PostConstruct
+	void validateSecretKey() {
+		byte[] keyBytes;
+		try {
+			keyBytes = Decoders.BASE64.decode(secretKey);
+		} catch (IllegalArgumentException e) {
+			throw new IllegalStateException(
+					"JWT_SECRET geçerli bir Base64 değeri değil. 'openssl rand -base64 32' ile üretin.", e);
+		}
+		if (keyBytes.length < 32) {
+			throw new IllegalStateException("JWT_SECRET en az 256 bit (32 byte) olmalı, şu an " + keyBytes.length
+					+ " byte. 'openssl rand -base64 32' ile üretin.");
+		}
+	}
 
 	// 1. Token İçinden Kullanıcı Adını (Bizim projemizde Email olacak) Çekme
 	public String extractUsername(String token) {
@@ -38,8 +67,7 @@ public class JwtService {
 		return Jwts.builder().setClaims(extraClaims) // İşte Map'i buraya gömüyoruz! (Roller, id vb. eklenebilir)
 				.setSubject(userDetails.getUsername()) // Token kimin için üretildi?
 				.setIssuedAt(new Date(System.currentTimeMillis())) // Üretim tarihi (Şu an)
-				.setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // Bitiş tarihi (Örn: 24
-																							// Saat)
+				.setExpiration(new Date(System.currentTimeMillis() + jwtExpiration)) // Bitiş tarihi (config'ten)
 				.signWith(getSignInKey(), SignatureAlgorithm.HS256) // Gümrük mührü (Gizli anahtarımızla imzalıyoruz)
 				.compact(); // Bütün bu bilgileri şifreli bir String'e çevir.
 	}
@@ -53,7 +81,7 @@ public class JwtService {
 
 	public String generateRefreshToken(UserDetails userDetails) {
 		return Jwts.builder().setSubject(userDetails.getUsername()).setIssuedAt(new Date(System.currentTimeMillis()))
-				.setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 7)) // 7 GÜN
+				.setExpiration(new Date(System.currentTimeMillis() + refreshExpiration)) // config'ten (vars. 7 gün)
 				.signWith(getSignInKey(), SignatureAlgorithm.HS256).compact();
 	}
 
@@ -83,7 +111,7 @@ public class JwtService {
 	// String olan şifremizi, JJWT kütüphanesinin anlayacağı kriptografik anahtara
 	// dönüştürüyoruz
 	private Key getSignInKey() {
-		byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+		byte[] keyBytes = Decoders.BASE64.decode(secretKey);
 		return Keys.hmacShaKeyFor(keyBytes);
 	}
 }

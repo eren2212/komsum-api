@@ -40,6 +40,18 @@ spring:
         jdbc:
           time_zone: Europe/Istanbul
 
+# JWT imzalama ayarları.
+# secret-key'in BİLEREK varsayılanı yoktur: JWT_SECRET tanımlı değilse uygulama
+# açılmaz. Böylece sunucuda env unutulursa sessizce zayıf/bilinen bir anahtarla
+# çalışma riski kalmaz. Yeni anahtar üretmek için: openssl rand -base64 32
+application:
+  security:
+    jwt:
+      secret-key: ${JWT_SECRET}
+      expiration: ${JWT_EXPIRATION:86400000} # 24 saat (ms)
+      refresh-token:
+        expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 gün (ms)
+
 # Supabase Storage yerine kendi MinIO'muz (S3 uyumlu).
 # Değerler docker-compose env'inden gelir; aşağıdakiler local varsayılanı.
 storage:
