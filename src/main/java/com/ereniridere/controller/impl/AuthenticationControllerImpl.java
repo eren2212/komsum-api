@@ -98,6 +98,18 @@ public class AuthenticationControllerImpl extends BaseController implements IAut
 		return ok(authenticationService.refreshToken(request));
 	}
 
+	@PostMapping(path = "/logout")
+	@Override
+	public RootEntity<String> logout(HttpServletRequest request) {
+
+		// Authorization başlığındaki refresh token'ı sunucu tarafında iptal eder.
+		// İstemci token'ı zaten siliyor; bu çağrı çalınan bir kopyanın kalan
+		// ömrü boyunca kullanılmasını engeller.
+		authenticationService.logout(request);
+
+		return ok("Çıkış yapıldı.");
+	}
+
 	@PostMapping("/forgot-password")
 	public RootEntity<String> forgotPassword(@Valid @RequestBody DtoForgotPassword request) {
 

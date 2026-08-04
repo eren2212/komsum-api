@@ -35,6 +35,7 @@ import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.security.jwt.JwtService;
 import com.ereniridere.service.IAuthenticationService;
 import com.ereniridere.service.IEmailService;
+import com.ereniridere.service.IRefreshTokenService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -66,6 +67,9 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 
 	@Autowired
 	private UserConsentRepository userConsentRepository;
+
+	@Autowired
+	private IRefreshTokenService refreshTokenService;
 
 	AuthenticationServiceImpl(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -112,6 +116,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 
 		var jwtToken = jwtService.generateToken(user);
 		var refreshToken = jwtService.generateRefreshToken(user);
+		refreshTokenService.store(refreshToken, user);
 
 		return DtoAuthenticationResponse.builder().accessToken(jwtToken).refreshToken(refreshToken).build();
 
@@ -128,6 +133,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 
 		var jwtToken = jwtService.generateToken(user);
 		var refreshToken = jwtService.generateRefreshToken(user);
+		refreshTokenService.store(refreshToken, user);
 
 		return DtoAuthenticationResponse.builder().accessToken(jwtToken).refreshToken(refreshToken).build();
 
@@ -161,14 +167,36 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 			// Refresh Token sağlam mı ve süresi dolmamış mı kontrol et
 			if (jwtService.isTokenValid(refreshToken, user)) {
 
-				// Sağlamsa, adama şifre sormadan YEPYENİ bir Access Token üret!
-				var accessToken = jwtService.generateToken(user);
+				// Sunucu tarafındaki kaydı doğrula ve tüket. İptal edilmiş bir
+				// token tekrar geldiyse burada tüm oturumlar kapatılır.
+				refreshTokenService.consumeForRotation(refreshToken, user);
 
-				// Eski refresh token'ı kullanmaya devam etsin
-				return DtoAuthenticationResponse.builder().accessToken(accessToken).refreshToken(refreshToken).build();
+				// ROTATION: her yenilemede refresh token da yenilenir. Böylece
+				// sızan bir token en fazla bir kez kullanılabilir ve meşru
+				// istemci tekrar yenilemeye çalıştığında çalıntı tespit edilir.
+				var accessToken = jwtService.generateToken(user);
+				var newRefreshToken = jwtService.generateRefreshToken(user);
+				refreshTokenService.store(newRefreshToken, user);
+
+				return DtoAuthenticationResponse.builder().accessToken(accessToken).refreshToken(newRefreshToken)
+						.build();
 			}
 		}
 		throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Geçersiz refresh token"));
+	}
+
+	@Override
+	public void logout(HttpServletRequest request) {
+		final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+
+		// Çıkış her hâlükârda "başarılı" sayılır: istemci token'ı zaten siliyor,
+		// sunucuda karşılığı yoksa yapacak bir şey yok. Sessizce yok saymak
+		// aynı zamanda hangi token'ların geçerli olduğunu sızdırmaz.
+		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+			return;
+		}
+
+		refreshTokenService.revoke(authHeader.substring(7));
 	}
 
 	@Override
@@ -231,6 +259,11 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 		dbUser.setResetOtpExpiration(null);
 
 		userRepository.save(dbUser);
+
+		// Şifre sıfırlamanın asıl amacı hesabı geri almaktır: hesabı ele geçiren
+		// tarafın elindeki refresh token'lar geçersiz kılınmazsa şifre
+		// değişmesine rağmen erişimi devam ederdi.
+		refreshTokenService.revokeAllForUser(dbUser);
 	}
 
 }

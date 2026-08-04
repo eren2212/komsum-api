@@ -16,6 +16,8 @@ public interface IAuthenticationController {
 
 	public RootEntity<DtoAuthenticationResponse> refreshToken(HttpServletRequest request);
 
+	public RootEntity<String> logout(HttpServletRequest request);
+
 	public RootEntity<String> forgotPassword(DtoForgotPassword request);
 
 	public RootEntity<String> resetPassword(DtoResetPassword request);

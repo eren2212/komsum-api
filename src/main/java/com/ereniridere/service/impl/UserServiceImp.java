@@ -32,6 +32,7 @@ import com.ereniridere.repository.NeighborhoodRepository;
 import com.ereniridere.repository.NotificationRepository;
 import com.ereniridere.repository.PostLikeRepository;
 import com.ereniridere.repository.PostRepository;
+import com.ereniridere.repository.RefreshTokenRepository;
 import com.ereniridere.repository.RoomioMatchRepository;
 import com.ereniridere.repository.RoomioProfileRepository;
 import com.ereniridere.repository.RoomioSwipeRepository;
@@ -88,6 +89,8 @@ public class UserServiceImp implements IUserService {
 	private RoomioSwipeRepository roomioSwipeRepository;
 	@Autowired
 	private RoomioProfileRepository roomioProfileRepository;
+	@Autowired
+	private RefreshTokenRepository refreshTokenRepository;
 
 	UserServiceImp(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -272,7 +275,9 @@ public class UserServiceImp implements IUserService {
 		// 8) Mesajlar → sonra sohbet odaları
 		messageRepository.deleteAllByUserChatRooms(userId);
 		chatRoomRepository.deleteAllByParticipant(userId);
-		// 9) En son: kullanıcının kendisi
+		// 9) Oturum kayıtları (user_id FK'sı kullanıcı silinmesini engellemesin)
+		refreshTokenRepository.deleteAllByUserId(userId);
+		// 10) En son: kullanıcının kendisi
 		userRepository.delete(dbUser);
 	}
 }

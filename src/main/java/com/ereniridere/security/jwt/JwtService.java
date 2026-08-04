@@ -119,8 +119,8 @@ public class JwtService {
 		return extractExpiration(token).before(new Date());
 	}
 
-	// Bitiş tarihini çekme
-	private Date extractExpiration(String token) {
+	// Bitiş tarihini çekme (refresh token kaydının expiresAt'i de buradan gelir)
+	public Date extractExpiration(String token) {
 		return extractClaim(token, Claims::getExpiration);
 	}
 

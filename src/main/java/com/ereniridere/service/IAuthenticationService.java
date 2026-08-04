@@ -16,6 +16,9 @@ public interface IAuthenticationService {
 
 	public DtoAuthenticationResponse refreshToken(HttpServletRequest request);
 
+	/** Authorization başlığındaki refresh token'ı iptal eder (çıkış). */
+	public void logout(HttpServletRequest request);
+
 	public void forgotPassword(DtoForgotPassword request);
 
 	public void resetPassword(DtoResetPassword request);
