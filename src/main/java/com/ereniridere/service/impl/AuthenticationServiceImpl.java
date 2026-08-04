@@ -39,6 +39,7 @@ import com.ereniridere.service.IAuthenticationService;
 import com.ereniridere.service.IEmailService;
 import com.ereniridere.service.IRefreshTokenService;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 
 @Service
@@ -161,14 +162,24 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 
 		refreshToken = authHeader.substring(7);
 
-		// Burada SADECE refresh token kabul edilir. Aksi hâlde bir access token
-		// refresh yerine kullanılıp süresiz olarak yeni access token üretilebilir
-		// ve kısa ömürlü olmasının anlamı kalmazdı.
-		if (!jwtService.isRefreshToken(refreshToken)) {
-			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Geçersiz refresh token"));
-		}
+		// Token'ı AYRIŞTIRMAK kendi başına hata fırlatabilir: imza tutmuyorsa
+		// (ör. JWT_SECRET değiştikten sonra elde kalan eski token), süresi
+		// dolmuşsa ya da gövde bozuksa JJWT ham bir JwtException atar. Bunlar
+		// yakalanmazsa istemciye 500 döner ve her denemede log'a tam stack
+		// trace düşer — oysa geçersiz bir refresh token beklenen bir durumdur.
+		try {
+			// Burada SADECE refresh token kabul edilir. Aksi hâlde bir access token
+			// refresh yerine kullanılıp süresiz olarak yeni access token üretilebilir
+			// ve kısa ömürlü olmasının anlamı kalmazdı.
+			if (!jwtService.isRefreshToken(refreshToken)) {
+				throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Geçersiz refresh token"));
+			}
 
-		userEmail = jwtService.extractUsername(refreshToken);
+			userEmail = jwtService.extractUsername(refreshToken);
+		} catch (JwtException e) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED,
+					"Oturumun geçersiz, lütfen tekrar giriş yap"));
+		}
 
 		if (userEmail != null) {
 			var user = this.userRepository.findByEmail(userEmail)
