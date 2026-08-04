@@ -28,6 +28,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private final JwtService jwtService;
 	private final UserDetailsService userDetailsService;
 
+	/**
+	 * /api/auth/** uçları SecurityConfig'te zaten permitAll ve bir kısmı
+	 * Authorization başlığında bilerek REFRESH token taşıyor
+	 * (/refresh-token, /logout). Bu filtre yalnızca access token kabul ettiği
+	 * için burada çalışsaydı o istekleri 401'e düşürürdü. Kimlik doğrulaması
+	 * gerektirmeyen bu yolları tamamen atlıyoruz.
+	 */
+	@Override
+	protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+		return request.getServletPath().startsWith("/api/auth/");
+	}
+
 	@Override
 	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
 			@NonNull FilterChain filterChain) throws ServletException, IOException {
@@ -49,6 +61,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			// 2. "Bearer " kelimesi 7 karakterdir. Token'ı bu 7 karakterden sonrasını
 			// keserek alıyoruz.
 			jwt = authHeader.substring(7);
+
+			// 2b. Korumalı uçlar SADECE access token kabul eder. Refresh token
+			// çok daha uzun ömürlü olduğu için onunla normal API çağrısı
+			// yapılabilseydi, sızan bir refresh token 7 gün boyunca tam erişim
+			// demek olurdu. (Tip claim'i taşımayan eski token'lar da burada
+			// elenir — anahtar rotasyonuyla zaten geçersizler.)
+			if (!jwtService.isAccessToken(jwt)) {
+				handleExceptionInFilter(response, "INVALID_TOKEN",
+						"Bu istek için geçerli bir oturum anahtarı gerekiyor, lütfen tekrar giriş yap!");
+				return;
+			}
 
 			// 3. Az önce yazdığımız makineyi (JwtService) kullanarak token içindeki email'i
 			// cımbızlıyoruz.

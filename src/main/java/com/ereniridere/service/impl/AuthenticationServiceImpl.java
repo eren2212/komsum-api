@@ -123,7 +123,8 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 		authenticationManager
 				.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
-		var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+		var user = userRepository.findByEmail(request.getEmail())
+				.orElseThrow(() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı")));
 
 		var jwtToken = jwtService.generateToken(user);
 		var refreshToken = jwtService.generateRefreshToken(user);
@@ -138,17 +139,24 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 		final String refreshToken;
 		final String userEmail;
 
-		// Header'da Bearer token yoksa hata fırlat (Bunu GlobalExceptionHandler'da
-		// yakalayabilirsin)
 		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-			throw new RuntimeException("Refresh token bulunamadı!");
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Refresh token bulunamadı"));
 		}
 
 		refreshToken = authHeader.substring(7);
+
+		// Burada SADECE refresh token kabul edilir. Aksi hâlde bir access token
+		// refresh yerine kullanılıp süresiz olarak yeni access token üretilebilir
+		// ve kısa ömürlü olmasının anlamı kalmazdı.
+		if (!jwtService.isRefreshToken(refreshToken)) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Geçersiz refresh token"));
+		}
+
 		userEmail = jwtService.extractUsername(refreshToken);
 
 		if (userEmail != null) {
-			var user = this.userRepository.findByEmail(userEmail).orElseThrow();
+			var user = this.userRepository.findByEmail(userEmail)
+					.orElseThrow(() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı")));
 
 			// Refresh Token sağlam mı ve süresi dolmamış mı kontrol et
 			if (jwtService.isTokenValid(refreshToken, user)) {
@@ -160,7 +168,7 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 				return DtoAuthenticationResponse.builder().accessToken(accessToken).refreshToken(refreshToken).build();
 			}
 		}
-		throw new RuntimeException("Geçersiz Refresh Token!");
+		throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Geçersiz refresh token"));
 	}
 
 	@Override

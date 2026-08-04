@@ -20,6 +20,13 @@ import jakarta.annotation.PostConstruct;
 @Service // Spring'e "Bu bir servistir, hafızaya al" diyoruz
 public class JwtService {
 
+	// Token'ın ne işe yaradığını belirten claim. Bu claim olmadan access ve
+	// refresh token yapısal olarak birbirinin aynısı olur; o zaman bir access
+	// token refresh yerine kullanılıp sonsuza kadar yeni token üretilebilir.
+	public static final String CLAIM_TOKEN_TYPE = "token_type";
+	public static final String TOKEN_TYPE_ACCESS = "access";
+	public static final String TOKEN_TYPE_REFRESH = "refresh";
+
 	// 256-bit (32 byte) Base64 formatında gizli anahtar. Koda YAZILMAZ; ortam
 	// değişkeninden (JWT_SECRET) gelir. application.yml'de varsayılan değeri de
 	// yoktur — anahtar tanımlı değilse uygulama bilerek hiç açılmaz.
@@ -64,7 +71,10 @@ public class JwtService {
 
 	// 3. MÜFREDATTAKİ MADDE: Token İçerisine Map Gömmek (Ekstra Claim'ler)
 	public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-		return Jwts.builder().setClaims(extraClaims) // İşte Map'i buraya gömüyoruz! (Roller, id vb. eklenebilir)
+		Map<String, Object> claims = new HashMap<>(extraClaims);
+		claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
+
+		return Jwts.builder().setClaims(claims) // İşte Map'i buraya gömüyoruz! (Roller, id vb. eklenebilir)
 				.setSubject(userDetails.getUsername()) // Token kimin için üretildi?
 				.setIssuedAt(new Date(System.currentTimeMillis())) // Üretim tarihi (Şu an)
 				.setExpiration(new Date(System.currentTimeMillis() + jwtExpiration)) // Bitiş tarihi (config'ten)
@@ -80,9 +90,28 @@ public class JwtService {
 	}
 
 	public String generateRefreshToken(UserDetails userDetails) {
-		return Jwts.builder().setSubject(userDetails.getUsername()).setIssuedAt(new Date(System.currentTimeMillis()))
+		return Jwts.builder().claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH).setSubject(userDetails.getUsername())
+				.setIssuedAt(new Date(System.currentTimeMillis()))
 				.setExpiration(new Date(System.currentTimeMillis() + refreshExpiration)) // config'ten (vars. 7 gün)
 				.signWith(getSignInKey(), SignatureAlgorithm.HS256).compact();
+	}
+
+	/**
+	 * Token'ın tipini döndürür ("access" / "refresh"). Tip claim'i taşımayan
+	 * (bu değişiklikten önce üretilmiş) token'larda null döner.
+	 */
+	public String extractTokenType(String token) {
+		return extractClaim(token, claims -> claims.get(CLAIM_TOKEN_TYPE, String.class));
+	}
+
+	/** Korumalı uçlarda yalnızca access token kabul edilir. */
+	public boolean isAccessToken(String token) {
+		return TOKEN_TYPE_ACCESS.equals(extractTokenType(token));
+	}
+
+	/** /api/auth/refresh-token yalnızca refresh token kabul eder. */
+	public boolean isRefreshToken(String token) {
+		return TOKEN_TYPE_REFRESH.equals(extractTokenType(token));
 	}
 
 	// Token'ın süresi dolmuş mu kontrolü
