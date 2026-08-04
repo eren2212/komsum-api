@@ -1,10 +1,12 @@
 package com.ereniridere.service.impl;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +73,9 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 	@Autowired
 	private IRefreshTokenService refreshTokenService;
 
+	// Şifre sıfırlama kodu üretimi için. java.util.Random tahmin edilebilirdir.
+	private final SecureRandom secureRandom = new SecureRandom();
+
 	AuthenticationServiceImpl(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 	}
@@ -78,6 +83,11 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 	@Override
 	public DtoAuthenticationResponse register(DtoRegisterRequest request) {
 
+		// NOT: Kayıt akışında e-posta sızdırmasını (user enumeration) tamamen
+		// kapatmak mümkün değil — kullanıcı zaten kayıtlıysa bunu söylemek
+		// gerekiyor, yoksa hesabı olan biri neden kayıt olamadığını anlayamaz.
+		// Otomatik e-posta taramasını Adım 2'de eklenen IP rate limiti
+		// (20 istek/dk) pratikte kullanılamaz hâle getiriyor.
 		if (userRepository.findByEmail(request.getEmail()).isPresent()) {
 			throw new BaseException(
 					new ErrorMessage(MessageType.RECORD_ALREADY_EXISTS, "Bu e-posta zaten kullanılıyor"));
@@ -204,14 +214,18 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 		// 1. Kullanıcıyı bul
 		Optional<User> optional = userRepository.findByEmail(request.getEmail());
 
+		// E-posta kayıtlı değilse SESSİZCE çık. Controller her durumda aynı
+		// başarı mesajını döndürür; aksi hâlde bu uç, hangi e-postaların sistemde
+		// kayıtlı olduğunu tek tek sorgulamaya (user enumeration) izin verirdi.
 		if (optional.isEmpty()) {
-			throw new BaseException(
-					new ErrorMessage(MessageType.NO_RECORD_EXIST, "Bu e-posta ile kayıtlı komşu bulunamadı."));
+			return;
 		}
 		User user = optional.get();
 
 		// 2. 6 Haneli Rastgele OTP Üret (Örn: 482910)
-		String otp = String.format("%06d", new Random().nextInt(999999));
+		// SecureRandom: java.util.Random tahmin edilebilir bir dizi üretir,
+		// sıfırlama kodu gibi güvenlik değeri taşıyan sayılarda kullanılmaz.
+		String otp = String.format("%06d", secureRandom.nextInt(1_000_000));
 
 		// 3. OTP'yi ve Son Kullanma Tarihini (Şu andan itibaren 3 DAKİKA) User objesine
 		// kaydet
@@ -229,13 +243,19 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 		// 1. Adamı bul
 		Optional<User> optional = userRepository.findByEmail(request.getEmail());
 
+		// Bilinmeyen e-posta için "kullanıcı bulunamadı" demek, bu ucu da bir
+		// hesap sorgulama aracına çevirirdi. Kod hatalıymış gibi aynı mesaj döner.
 		if (optional.isEmpty()) {
-			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı"));
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Girdiğiniz doğrulama kodu hatalı"));
 		}
 		User dbUser = optional.get();
 
-		// 2. KOD DOĞRU MU?
-		if (dbUser.getResetOtp() == null || !dbUser.getResetOtp().equals(request.getOtp())) {
+		// 2. KOD DOĞRU MU? (sabit zamanlı karşılaştırma — eşleşen karakter
+		// sayısına göre süre değişmesin)
+		if (dbUser.getResetOtp() == null || request.getOtp() == null
+				|| !MessageDigest.isEqual(dbUser.getResetOtp().getBytes(StandardCharsets.UTF_8),
+						request.getOtp().getBytes(StandardCharsets.UTF_8))) {
 			throw new BaseException(
 					new ErrorMessage(MessageType.VALIDATION_FAILED, "Girdiğiniz doğrulama kodu hatalı"));
 		}

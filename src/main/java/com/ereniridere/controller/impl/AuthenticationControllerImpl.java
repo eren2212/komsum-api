@@ -118,7 +118,9 @@ public class AuthenticationControllerImpl extends BaseController implements IAut
 
 		authenticationService.forgotPassword(request);
 
-		return ok("Şifre sıfırlama kodu e-postanıza gönderildi!");
+		// Bu mesaj e-posta kayıtlı olsun ya da olmasın AYNI dönmelidir; aksi
+		// hâlde uç, hangi e-postaların sistemde olduğunu sorgulamaya yarar.
+		return ok("Bu e-posta kayıtlıysa şifre sıfırlama kodu gönderildi.");
 	}
 
 	@PostMapping("/reset-password")
