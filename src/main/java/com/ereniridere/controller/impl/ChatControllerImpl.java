@@ -1,5 +1,7 @@
 package com.ereniridere.controller.impl;
 
+import java.time.Duration;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
@@ -21,20 +23,32 @@ import com.ereniridere.dto.response.message.DtoChatRoom;
 import com.ereniridere.dto.response.message.DtoMessage;
 import com.ereniridere.entity.RootEntity;
 import com.ereniridere.entity.User;
+import com.ereniridere.exception.BaseException;
+import com.ereniridere.exception.ErrorMessage;
+import com.ereniridere.exception.MessageType;
 import com.ereniridere.service.IChatService;
+import com.ereniridere.service.IRateLimitingService;
 import com.ereniridere.service.IRealtimeChatService;
 
+import io.github.bucket4j.Bucket;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/chats")
 public class ChatControllerImpl extends BaseController implements IChatController {
 
+	// Mesaj spam'ini önlemek için: kullanıcı başına 10 saniyede en fazla 10 mesaj.
+	private static final int MESSAGE_CAPACITY = 10;
+	private static final Duration MESSAGE_PERIOD = Duration.ofSeconds(10);
+
 	@Autowired
 	private IChatService chatService;
 
 	@Autowired
 	private IRealtimeChatService realtimeChatService;
+
+	@Autowired
+	private IRateLimitingService rateLimitingService;
 
 	// 1. Sohbet Başlat (Gidip adamın profiline tıkladığımızda çalışacak)
 	@PostMapping("/start")
@@ -54,6 +68,11 @@ public class ChatControllerImpl extends BaseController implements IChatControlle
 
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		Integer userId = currentUser.getId();
+
+		Bucket bucket = rateLimitingService.resolveBucket("chat:" + userId, MESSAGE_CAPACITY, MESSAGE_PERIOD);
+		if (!bucket.tryConsume(1)) {
+			throw new BaseException(new ErrorMessage(MessageType.TOO_MANY_REQUESTS, null));
+		}
 
 		return ok(chatService.sendMessage(userId, roomId, request));
 	}

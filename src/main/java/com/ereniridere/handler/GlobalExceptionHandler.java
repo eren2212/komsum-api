@@ -88,7 +88,7 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(value = { BadCredentialsException.class })
 	public ResponseEntity<ApiError> handleBadCredentialsException(BadCredentialsException ex, WebRequest webRequest) {
 
-		ApiError<String> error = createApiError("E-posta veya şifre hatalı kanzi!", webRequest);
+		ApiError<String> error = createApiError("E-posta veya şifre hatalı!", webRequest);
 		error.setStatus(HttpStatus.UNAUTHORIZED.value());
 
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
