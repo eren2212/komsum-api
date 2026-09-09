@@ -51,11 +51,4 @@ public class UploadControllerImpl extends BaseController {
 		return ok(storageService.uploadImage(file, folder));
 	}
 
-	/** POST /api/upload/roomio-photo – Roomio profil fotoğrafı yükle */
-	@PostMapping("/roomio-photo")
-	public RootEntity<String> uploadRoomioPhoto(@RequestParam("file") MultipartFile file) {
-		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-		String folder = "roomio-photos/" + currentUser.getId();
-		return ok(storageService.uploadImage(file, folder));
-	}
 }

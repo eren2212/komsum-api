@@ -77,6 +77,13 @@ public class User implements UserDetails {
 	@Builder.Default
 	private Integer karmaScore = 0;
 
+	// 3.1 Komşu Görevi puanı — günlük görevlerden kazanılan, ileride esnaf
+	// indiriminde harcanabilecek bakiye. karmaScore'dan ayrıdır: karma itibar,
+	// bu ise biriktirilip harcanan bir bakiyedir.
+	@Builder.Default
+	@Column(name = "total_points")
+	private Integer totalPoints = 0;
+
 	// 4. Spam Engellemek İçin Son Mahalle Değiştirme Tarihi
 	private LocalDateTime lastNeighborhoodChange;
 
@@ -105,12 +112,6 @@ public class User implements UserDetails {
 	@Builder.Default
 	@Column(name = "message_notifications_enabled")
 	private Boolean messageNotificationsEnabled = true;
-
-	// Roomio eşleşme bildirimi tercihi — mesaj bildiriminden ayrı tutulur, kullanıcı
-	// birini kapatıp diğerini açık bırakabilsin diye.
-	@Builder.Default
-	@Column(name = "roomio_match_notifications_enabled")
-	private Boolean roomioMatchNotificationsEnabled = true;
 
 	// --- SPRING SECURITY METODLARI (Aşağısı eskisi gibi kalacak) ---
 	@Override

@@ -2,34 +2,40 @@ package com.ereniridere.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Toplam puan eşiğine ulaşınca kazanılan rozet. Sabit liste olarak
+ * {@code BadgeSeeder} ile seed edilir.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "roomio_profile_photos")
-public class RoomioProfilePhoto {
+@Table(name = "badges")
+public class Badge {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer id;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "roomio_profile_id", nullable = false)
-	private RoomioProfile roomioProfile;
+	@Column(nullable = false, unique = true)
+	private String name;
 
-	@Column
-	private String photoUrl;
+	@Column(length = 300)
+	private String description;
+
+	@Column(name = "point_threshold", nullable = false)
+	private Integer pointThreshold;
+
+	@Column(name = "icon_url")
+	private String iconUrl;
 }

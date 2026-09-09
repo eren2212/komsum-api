@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import com.ereniridere.dto.response.post.DtoComment;
 import com.ereniridere.entity.Comment;
 import com.ereniridere.entity.Post;
 import com.ereniridere.entity.User;
+import com.ereniridere.event.CommentCreatedEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -34,6 +36,9 @@ public class CommentServiceImpl implements ICommentService {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private ApplicationEventPublisher eventPublisher;
 
 	@Override
 	public DtoComment createComment(Integer userId, Integer postId, DtoCreateComment request) {
@@ -62,6 +67,8 @@ public class CommentServiceImpl implements ICommentService {
 		newComment.setPost(optionalPost.get());
 
 		Comment saveComment = commentRepository.save(newComment);
+
+		eventPublisher.publishEvent(new CommentCreatedEvent(saveComment.getId(), userId));
 
 		DtoComment dtoComment = new DtoComment();
 

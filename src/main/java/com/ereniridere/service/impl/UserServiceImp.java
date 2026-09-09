@@ -33,9 +33,6 @@ import com.ereniridere.repository.NotificationRepository;
 import com.ereniridere.repository.PostLikeRepository;
 import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.RefreshTokenRepository;
-import com.ereniridere.repository.RoomioMatchRepository;
-import com.ereniridere.repository.RoomioProfileRepository;
-import com.ereniridere.repository.RoomioSwipeRepository;
 import com.ereniridere.repository.ServiceProviderProfileRepository;
 import com.ereniridere.repository.UserConsentRepository;
 import com.ereniridere.repository.UserRepository;
@@ -83,12 +80,6 @@ public class UserServiceImp implements IUserService {
 	private MessageRepository messageRepository;
 	@Autowired
 	private ChatRoomRepository chatRoomRepository;
-	@Autowired
-	private RoomioMatchRepository roomioMatchRepository;
-	@Autowired
-	private RoomioSwipeRepository roomioSwipeRepository;
-	@Autowired
-	private RoomioProfileRepository roomioProfileRepository;
 	@Autowired
 	private RefreshTokenRepository refreshTokenRepository;
 
@@ -256,11 +247,6 @@ public class UserServiceImp implements IUserService {
 		// 3) Profiller (esnaf / usta)
 		serviceProviderProfileRepository.deleteAllByUserId(userId);
 		merchantProfileRepository.deleteAllByUserId(userId);
-		// 3b) Roomio (eşleşme → swipe → fotoğraf → profil sırasıyla, FK kısıtları için)
-		roomioMatchRepository.deleteAllByParticipant(userId);
-		roomioSwipeRepository.deleteAllBySwiperIdOrSwipedId(userId);
-		roomioProfileRepository.deletePhotosByUserId(userId);
-		roomioProfileRepository.deleteAllByUserId(userId);
 		// 4) Etkinlik katılım/bookmark kayıtları (kendi + sildiği etkinliklere ait)
 		eventParticipantRepository.deleteAllByUserIdOrAuthoredEvents(userId);
 		eventBookmarkRepository.deleteAllByUserIdOrAuthoredEvents(userId);

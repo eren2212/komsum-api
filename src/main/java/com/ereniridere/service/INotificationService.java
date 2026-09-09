@@ -22,4 +22,7 @@ public interface INotificationService {
 	DtoNotificationPreferences getPreferences(Integer userId);
 
 	DtoNotificationPreferences updatePreferences(Integer userId, DtoNotificationPreferences prefs);
+
+	// Rozet kazanımı bildirimi — Komşu Görevi sistemi tarafından tetiklenir.
+	void notifyBadgeEarned(Integer userId, Integer badgeId, String badgeName);
 }

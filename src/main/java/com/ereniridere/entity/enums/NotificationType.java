@@ -4,5 +4,5 @@ public enum NotificationType {
 	NEW_POST,
 	NEW_EVENT,
 	NEW_MESSAGE,
-	ROOMIO_MATCH
+	BADGE_EARNED
 }

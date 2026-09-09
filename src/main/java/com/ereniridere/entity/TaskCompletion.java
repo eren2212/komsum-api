@@ -1,10 +1,11 @@
 package com.ereniridere.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
-import com.ereniridere.entity.enums.RoomioSwipeAction;
+import com.ereniridere.entity.enums.TaskType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,31 +24,39 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Bir kullanıcının belirli bir günde belirli bir görevi tamamladığını gösterir.
+ * Unique constraint "günde bir kez" kuralını DB seviyesinde garanti eder —
+ * etkinliğe gir/çık gibi tekrarlanabilir aksiyonlarda puan çiftliğini engeller.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "roomio_swipes", uniqueConstraints = @UniqueConstraint(columnNames = { "swiper_id", "swiped_id" }))
-public class RoomioSwipe {
+@Table(name = "task_completions", uniqueConstraints = @UniqueConstraint(name = "uk_task_completion_user_type_date", columnNames = {
+		"user_id", "task_type", "completion_date" }))
+public class TaskCompletion {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Integer id;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "swiper_id", nullable = false)
-	private User swiper;
-
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "swiped_id", nullable = false)
-	private User swiped;
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
 
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private RoomioSwipeAction action;
+	@Column(name = "task_type", nullable = false)
+	private TaskType taskType;
+
+	@Column(name = "completion_date", nullable = false)
+	private LocalDate completionDate;
+
+	@Column(name = "points_awarded", nullable = false)
+	private Integer pointsAwarded;
 
 	@CreationTimestamp
-	@Column(updatable = false)
+	@Column(name = "created_at", updatable = false)
 	private LocalDateTime createdAt;
 }

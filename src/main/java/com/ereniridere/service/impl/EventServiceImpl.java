@@ -22,6 +22,7 @@ import com.ereniridere.entity.EventBookmark;
 import com.ereniridere.entity.EventParticipant;
 import com.ereniridere.entity.User;
 import com.ereniridere.event.EventCreatedEvent;
+import com.ereniridere.event.EventParticipationEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -154,6 +155,7 @@ public class EventServiceImpl implements IEventService {
 			newParticipant.setEvent(event);
 			newParticipant.setUser(user);
 			eventParticipantRepository.save(newParticipant);
+			eventPublisher.publishEvent(new EventParticipationEvent(eventId, userId));
 			return "Etkinliğe katıldın!";
 		}
 	}

@@ -54,8 +54,8 @@ public class GlobalExceptionHandler {
 			return HttpStatus.BAD_REQUEST;
 		}
 		return switch (messageType) {
-		case NO_RECORD_EXIST, ROOMIO_PROFILE_NOT_FOUND -> HttpStatus.NOT_FOUND;
-		case RECORD_ALREADY_EXISTS, ROOMIO_PROFILE_ALREADY_EXISTS, ROOMIO_ALREADY_SWIPED -> HttpStatus.CONFLICT;
+		case NO_RECORD_EXIST -> HttpStatus.NOT_FOUND;
+		case RECORD_ALREADY_EXISTS -> HttpStatus.CONFLICT;
 		case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
 		case GENERAL_EXCEPTION -> HttpStatus.INTERNAL_SERVER_ERROR;
 		default -> HttpStatus.BAD_REQUEST;
