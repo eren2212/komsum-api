@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ereniridere.dto.request.notification.DtoNotificationPreferences;
 import com.ereniridere.dto.response.notification.DtoNotification;
 import com.ereniridere.entity.ChatRoom;
+import com.ereniridere.entity.Comment;
 import com.ereniridere.entity.Event;
 import com.ereniridere.entity.Message;
 import com.ereniridere.entity.Notification;
@@ -27,12 +28,14 @@ import com.ereniridere.entity.Post;
 import com.ereniridere.entity.User;
 import com.ereniridere.entity.enums.NotificationType;
 import com.ereniridere.entity.enums.RelatedEntityType;
+import com.ereniridere.event.CommentCreatedEvent;
 import com.ereniridere.event.EventCreatedEvent;
 import com.ereniridere.event.MessageSentEvent;
 import com.ereniridere.event.PostCreatedEvent;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
+import com.ereniridere.repository.CommentRepository;
 import com.ereniridere.repository.EventRepository;
 import com.ereniridere.repository.NotificationRepository;
 import com.ereniridere.repository.PostRepository;
@@ -58,6 +61,9 @@ public class NotificationServiceImpl implements INotificationService {
 
 	@Autowired
 	private EventRepository eventRepository;
+
+	@Autowired
+	private CommentRepository commentRepository;
 
 	@Autowired
 	private IPushService pushService;
@@ -215,6 +221,59 @@ public class NotificationServiceImpl implements INotificationService {
 		}
 	}
 
+	@Async("notificationExecutor")
+	@EventListener
+	@Transactional
+	public void handleCommentCreated(CommentCreatedEvent event) {
+		try {
+			// Fresh fetch — async thread kendi transaction'ında lazy proxy'ler çözülemez
+			Comment comment = commentRepository.findById(event.getCommentId()).orElse(null);
+			if (comment == null) {
+				log.warn("Yorum bildirimi atlandı: yorum bulunamadı (commentId={})", event.getCommentId());
+				return;
+			}
+			Post post = comment.getPost();
+			if (post == null) {
+				log.warn("Yorum bildirimi atlandı: gönderi bulunamadı (commentId={})", comment.getId());
+				return;
+			}
+			User recipient = post.getAuthor();
+			if (recipient == null) {
+				log.warn("Yorum bildirimi atlandı: gönderi sahibi bulunamadı (postId={})", post.getId());
+				return;
+			}
+			// Kendi gönderisine yorum yapmış — bildirim gönderme
+			if (recipient.getId().equals(event.getAuthorId())) {
+				return;
+			}
+			if (Boolean.FALSE.equals(recipient.getCommentNotificationsEnabled())) {
+				return;
+			}
+
+			User commentAuthor = userRepository.findById(event.getAuthorId()).orElse(null);
+			if (commentAuthor == null) {
+				log.warn("Yorum bildirimi atlandı: yorum yazarı bulunamadı (authorId={})", event.getAuthorId());
+				return;
+			}
+
+			String title = commentAuthor.getFirstname() + " gönderine yorum yaptı";
+			String body = preview(comment.getContent());
+
+			Map<String, String> data = baseData(NotificationType.NEW_COMMENT,
+					RelatedEntityType.POST, post.getId().longValue(), commentAuthor);
+
+			Notification notification = buildNotification(recipient, commentAuthor, NotificationType.NEW_COMMENT,
+					title, body, RelatedEntityType.POST, post.getId().longValue());
+			notificationRepository.save(notification);
+
+			if (recipient.getFcmToken() != null && !recipient.getFcmToken().isBlank()) {
+				pushService.sendToToken(recipient.getFcmToken(), title, body, data);
+			}
+		} catch (Exception e) {
+			log.error("Yorum bildirimi gönderilemedi", e);
+		}
+	}
+
 	// ============================
 	// USER-FACING APIs
 	// ============================
@@ -272,7 +331,8 @@ public class NotificationServiceImpl implements INotificationService {
 		return new DtoNotificationPreferences(
 				!Boolean.FALSE.equals(user.getPostNotificationsEnabled()),
 				!Boolean.FALSE.equals(user.getEventNotificationsEnabled()),
-				!Boolean.FALSE.equals(user.getMessageNotificationsEnabled()));
+				!Boolean.FALSE.equals(user.getMessageNotificationsEnabled()),
+				!Boolean.FALSE.equals(user.getCommentNotificationsEnabled()));
 	}
 
 	@Override
@@ -283,6 +343,7 @@ public class NotificationServiceImpl implements INotificationService {
 		user.setPostNotificationsEnabled(prefs.getPostEnabled());
 		user.setEventNotificationsEnabled(prefs.getEventEnabled());
 		user.setMessageNotificationsEnabled(prefs.getMessageEnabled());
+		user.setCommentNotificationsEnabled(prefs.getCommentEnabled());
 		userRepository.save(user);
 		return prefs;
 	}

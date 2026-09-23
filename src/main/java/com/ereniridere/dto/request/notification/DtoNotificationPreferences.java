@@ -18,4 +18,7 @@ public class DtoNotificationPreferences {
 
 	@NotNull
 	private Boolean messageEnabled;
+
+	@NotNull
+	private Boolean commentEnabled;
 }

@@ -110,6 +110,10 @@ public class User implements UserDetails {
 	private Boolean eventNotificationsEnabled = true;
 
 	@Builder.Default
+	@Column(name = "comment_notifications_enabled")
+	private Boolean commentNotificationsEnabled = true;
+
+	@Builder.Default
 	@Column(name = "message_notifications_enabled")
 	private Boolean messageNotificationsEnabled = true;
 
