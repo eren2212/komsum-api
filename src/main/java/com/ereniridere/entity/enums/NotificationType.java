@@ -5,5 +5,6 @@ public enum NotificationType {
 	NEW_EVENT,
 	NEW_MESSAGE,
 	NEW_COMMENT,
+	COMMENT_REPLY,
 	BADGE_EARNED
 }

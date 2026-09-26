@@ -3,6 +3,9 @@ package com.ereniridere.entity;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Formula;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,4 +54,15 @@ public class Comment {
 	// Yorumu silersek false yapacağız (Soft Delete)
 	@Builder.Default
 	private boolean isActive = true;
+
+	// 3. Kanca: Bu yorum başka bir yoruma cevapsa, o yorum hangisi?
+	// Ebeveyn silinirse (hesap silme cascade'i) cevap kaybolmasın, sadece top-level'a yükselsin.
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "parent_comment_id")
+	@OnDelete(action = OnDeleteAction.SET_NULL)
+	private Comment parentComment;
+
+	// Bu yoruma verilen aktif cevap sayısı (sadece top-level yorumlarda anlamlı)
+	@Formula("(SELECT COUNT(*) FROM comments c WHERE c.parent_comment_id = id AND c.is_active = true)")
+	private Integer replyCount;
 }

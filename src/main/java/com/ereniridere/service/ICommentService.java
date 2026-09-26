@@ -12,6 +12,8 @@ public interface ICommentService {
 
 	public Page<DtoComment> getPostComments(Integer postId, int pageNo, int pageSize);
 
+	public Page<DtoComment> getCommentReplies(Integer commentId, int pageNo, int pageSize);
+
 	public boolean deleteComment(Integer userId, Integer commentId);
 
 	public DtoComment updateComment(Integer userId, Integer commentId, DtoUpdateComment request);

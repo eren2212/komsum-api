@@ -13,6 +13,8 @@ public interface ICommentController {
 
 	public RootEntity<Page<DtoComment>> getPostComments(Integer postId, int pageNo, int pageSize);
 
+	public RootEntity<Page<DtoComment>> getCommentReplies(Integer commentId, int pageNo, int pageSize);
+
 	public RootEntity<Boolean> deleteComment(Integer commentId);
 
 	public RootEntity<DtoComment> updateComment(Integer commentId, DtoUpdateComment request);

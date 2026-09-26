@@ -66,6 +66,26 @@ public class CommentServiceImpl implements ICommentService {
 		newComment.setContent(request.getContent());
 		newComment.setPost(optionalPost.get());
 
+		if (request.getParentCommentId() != null) {
+			Comment parent = commentRepository.findById(request.getParentCommentId())
+					.orElseThrow(() -> new BaseException(
+							new ErrorMessage(MessageType.NO_RECORD_EXIST, "Cevap vermek istediğin yorum bulunamadı")));
+
+			if (!parent.getPost().getId().equals(postId)) {
+				throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu yorum bu gönderiye ait değil"));
+			}
+
+			// Tek seviye threading: bir cevaba cevap verilirse, orijinal üst yoruma bağlanır
+			Comment effectiveParent = parent.getParentComment() != null ? parent.getParentComment() : parent;
+
+			if (!effectiveParent.isActive()) {
+				throw new BaseException(
+						new ErrorMessage(MessageType.VALIDATION_FAILED, "Silinmiş bir yoruma cevap veremezsin!"));
+			}
+
+			newComment.setParentComment(effectiveParent);
+		}
+
 		Comment saveComment = commentRepository.save(newComment);
 
 		eventPublisher.publishEvent(new CommentCreatedEvent(saveComment.getId(), userId));
@@ -76,6 +96,7 @@ public class CommentServiceImpl implements ICommentService {
 		dtoComment.setAuthorId(optionalUser.get().getId());
 		dtoComment.setAuthorFirstName(optionalUser.get().getFirstname());
 		dtoComment.setAuthorLastName(optionalUser.get().getLastname());
+		dtoComment.setParentCommentId(saveComment.getParentComment() != null ? saveComment.getParentComment().getId() : null);
 
 		return dtoComment;
 	}
@@ -83,16 +104,29 @@ public class CommentServiceImpl implements ICommentService {
 	@Override
 	public Page<DtoComment> getPostComments(Integer postId, int pageNo, int pageSize) {
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
-		Page<Comment> comments = commentRepository.findByPostIdAndIsActiveTrueOrderByCreatedAtAsc(postId, pageable);
+		Page<Comment> comments = commentRepository
+				.findByPostIdAndParentCommentIsNullAndIsActiveTrueOrderByCreatedAtAsc(postId, pageable);
 
-		return comments.map(comment -> {
-			DtoComment dto = new DtoComment();
-			BeanUtils.copyProperties(comment, dto);
-			dto.setAuthorId(comment.getAuthor().getId());
-			dto.setAuthorFirstName(comment.getAuthor().getFirstname());
-			dto.setAuthorLastName(comment.getAuthor().getLastname());
-			return dto;
-		});
+		return comments.map(this::toDto);
+	}
+
+	@Override
+	public Page<DtoComment> getCommentReplies(Integer commentId, int pageNo, int pageSize) {
+		Pageable pageable = PageRequest.of(pageNo, pageSize);
+		Page<Comment> replies = commentRepository.findByParentCommentIdAndIsActiveTrueOrderByCreatedAtAsc(commentId,
+				pageable);
+
+		return replies.map(this::toDto);
+	}
+
+	private DtoComment toDto(Comment comment) {
+		DtoComment dto = new DtoComment();
+		BeanUtils.copyProperties(comment, dto);
+		dto.setAuthorId(comment.getAuthor().getId());
+		dto.setAuthorFirstName(comment.getAuthor().getFirstname());
+		dto.setAuthorLastName(comment.getAuthor().getLastname());
+		dto.setParentCommentId(comment.getParentComment() != null ? comment.getParentComment().getId() : null);
+		return dto;
 	}
 
 
@@ -124,13 +158,7 @@ public class CommentServiceImpl implements ICommentService {
 		Comment updatedComment = commentRepository.save(dbComment);
 
 		// Mobilde hemen gösterebilmek için DTO'ya çevirip dön
-		DtoComment dtoComment = new DtoComment();
-		BeanUtils.copyProperties(updatedComment, dtoComment);
-		dtoComment.setAuthorId(updatedComment.getAuthor().getId());
-		dtoComment.setAuthorFirstName(updatedComment.getAuthor().getFirstname());
-		dtoComment.setAuthorLastName(updatedComment.getAuthor().getLastname());
-
-		return dtoComment;
+		return toDto(updatedComment);
 	}
 
 	@Override

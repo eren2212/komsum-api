@@ -10,7 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ereniridere.entity.Comment;
 
 public interface CommentRepository extends JpaRepository<Comment, Integer> {
-	Page<Comment> findByPostIdAndIsActiveTrueOrderByCreatedAtAsc(Integer postId,
+	// Sadece top-level yorumlar (cevaplar hariç)
+	Page<Comment> findByPostIdAndParentCommentIsNullAndIsActiveTrueOrderByCreatedAtAsc(Integer postId,
+			org.springframework.data.domain.Pageable pageable);
+
+	// Bir yoruma verilen cevaplar
+	Page<Comment> findByParentCommentIdAndIsActiveTrueOrderByCreatedAtAsc(Integer parentCommentId,
 			org.springframework.data.domain.Pageable pageable);
 
 	// Hesap silme: kullanıcının yazdığı yorumlar VE kullanıcının postlarına gelen

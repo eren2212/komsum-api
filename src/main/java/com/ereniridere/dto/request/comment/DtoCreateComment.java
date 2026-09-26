@@ -12,4 +12,7 @@ public class DtoCreateComment {
 
 	@NotBlank(message = "Yorum boş olamaz !")
 	private String content;
+
+	// Doluysa bu yorum, id'si verilen yoruma bir cevaptır
+	private Integer parentCommentId;
 }

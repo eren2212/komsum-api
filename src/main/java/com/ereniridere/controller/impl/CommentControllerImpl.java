@@ -52,6 +52,14 @@ public class CommentControllerImpl extends BaseController implements ICommentCon
 		return ok(commentService.getPostComments(postId, pageNo, pageSize));
 	}
 
+	@GetMapping("/comments/{commentId}/replies")
+	@Override
+	public RootEntity<Page<DtoComment>> getCommentReplies(@PathVariable(value = "commentId") Integer commentId,
+			int pageNo, int pageSize) {
+
+		return ok(commentService.getCommentReplies(commentId, pageNo, pageSize));
+	}
+
 	@PutMapping("/comments/{commentId}")
 	@Override
 	public RootEntity<DtoComment> updateComment(@PathVariable(value = "commentId") Integer commentId,

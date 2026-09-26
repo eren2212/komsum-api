@@ -246,6 +246,12 @@ public class NotificationServiceImpl implements INotificationService {
 			if (recipient.getId().equals(event.getAuthorId())) {
 				return;
 			}
+			// Bu bir cevapsa ve cevaplanan yorumun sahibi de gönderi sahibiyse,
+			// "yorumunuza cevap verdi" bildirimi zaten kapsıyor — çift bildirim gönderme.
+			if (comment.getParentComment() != null
+					&& comment.getParentComment().getAuthor().getId().equals(recipient.getId())) {
+				return;
+			}
 			if (Boolean.FALSE.equals(recipient.getCommentNotificationsEnabled())) {
 				return;
 			}
@@ -271,6 +277,55 @@ public class NotificationServiceImpl implements INotificationService {
 			}
 		} catch (Exception e) {
 			log.error("Yorum bildirimi gönderilemedi", e);
+		}
+	}
+
+	@Async("notificationExecutor")
+	@EventListener
+	@Transactional
+	public void handleCommentReplyCreated(CommentCreatedEvent event) {
+		try {
+			// Fresh fetch — async thread kendi transaction'ında lazy proxy'ler çözülemez
+			Comment reply = commentRepository.findById(event.getCommentId()).orElse(null);
+			if (reply == null || reply.getParentComment() == null) {
+				return; // top-level yorum, cevap değil
+			}
+
+			Comment parent = reply.getParentComment();
+			User recipient = parent.getAuthor();
+			if (recipient == null) {
+				return;
+			}
+			// Kendi yorumuna cevap vermiş — bildirim gönderme
+			if (recipient.getId().equals(event.getAuthorId())) {
+				return;
+			}
+			if (Boolean.FALSE.equals(recipient.getCommentNotificationsEnabled())) {
+				return;
+			}
+
+			User replyAuthor = userRepository.findById(event.getAuthorId()).orElse(null);
+			if (replyAuthor == null) {
+				log.warn("Cevap bildirimi atlandı: yazar bulunamadı (authorId={})", event.getAuthorId());
+				return;
+			}
+
+			String title = replyAuthor.getFirstname() + " yorumunuza cevap verdi";
+			String body = preview(reply.getContent());
+
+			Map<String, String> data = baseData(NotificationType.COMMENT_REPLY,
+					RelatedEntityType.POST, reply.getPost().getId().longValue(), replyAuthor);
+			data.put("commentId", String.valueOf(reply.getId()));
+
+			Notification notification = buildNotification(recipient, replyAuthor, NotificationType.COMMENT_REPLY,
+					title, body, RelatedEntityType.POST, reply.getPost().getId().longValue());
+			notificationRepository.save(notification);
+
+			if (recipient.getFcmToken() != null && !recipient.getFcmToken().isBlank()) {
+				pushService.sendToToken(recipient.getFcmToken(), title, body, data);
+			}
+		} catch (Exception e) {
+			log.error("Cevap bildirimi gönderilemedi", e);
 		}
 	}
 

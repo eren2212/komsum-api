@@ -18,4 +18,8 @@ public class DtoComment {
 	private String authorLastName;
 
 	private LocalDateTime createdAt;
+
+	private Integer parentCommentId;
+
+	private Integer replyCount;
 }
