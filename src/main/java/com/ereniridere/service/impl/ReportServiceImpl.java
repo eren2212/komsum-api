@@ -25,6 +25,7 @@ import com.ereniridere.repository.MarketplaceListingRepository;
 import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.ReportRepository;
 import com.ereniridere.repository.UserRepository;
+import com.ereniridere.service.IEmailService;
 import com.ereniridere.service.IReportService;
 
 @Service
@@ -50,6 +51,9 @@ public class ReportServiceImpl implements IReportService {
 
 	@Autowired
 	private UserRepository userRepository;
+
+	@Autowired
+	private IEmailService emailService;
 
 	@Override
 	public DtoReport createReport(Integer userId, DtoCreateReport request) {
@@ -77,6 +81,15 @@ public class ReportServiceImpl implements IReportService {
 		Report savedReport = reportRepository.save(report);
 
 		long reportCount = reportRepository.countByReportedEntityTypeAndReportedEntityId(type, entityId);
+
+		User reporter = optionalReporter.get();
+		emailService.sendModerationAlert("Yeni şikayet: " + type + " #" + entityId,
+				"Şikayet eden: #" + reporter.getId() + " " + reporter.getFirstname() + " " + reporter.getLastname()
+						+ "\nİçerik: " + type + " #" + entityId
+						+ "\nSebep: " + request.getReason()
+						+ "\nAçıklama: " + (request.getDescription() != null ? request.getDescription() : "-")
+						+ "\nBu içerik için toplam şikayet: " + reportCount);
+
 		if (reportCount >= AUTO_HIDE_THRESHOLD) {
 			autoHide(type, entityId, reportCount);
 		}
@@ -153,6 +166,9 @@ public class ReportServiceImpl implements IReportService {
 			});
 		}
 		log.warn("İçerik otomatik gizlendi: type={} id={} reportCount={}", type, entityId, reportCount);
+		emailService.sendModerationAlert("İçerik otomatik gizlendi: " + type + " #" + entityId,
+				"İçerik " + reportCount + " farklı şikayet aldığı için otomatik gizlendi.\nİçerik: " + type + " #"
+						+ entityId);
 	}
 
 	private DtoReport toDto(Report report) {

@@ -10,9 +10,9 @@ public interface ICommentService {
 
 	public DtoComment createComment(Integer userId, Integer postId, DtoCreateComment request);
 
-	public Page<DtoComment> getPostComments(Integer postId, int pageNo, int pageSize);
+	public Page<DtoComment> getPostComments(Integer userId, Integer postId, int pageNo, int pageSize);
 
-	public Page<DtoComment> getCommentReplies(Integer commentId, int pageNo, int pageSize);
+	public Page<DtoComment> getCommentReplies(Integer userId, Integer commentId, int pageNo, int pageSize);
 
 	public boolean deleteComment(Integer userId, Integer commentId);
 

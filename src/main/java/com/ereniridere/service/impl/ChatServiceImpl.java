@@ -28,6 +28,7 @@ import com.ereniridere.repository.MessageRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IChatService;
 import com.ereniridere.service.IRealtimeChatService;
+import com.ereniridere.service.IUserBlockService;
 
 @Service
 public class ChatServiceImpl implements IChatService {
@@ -47,6 +48,9 @@ public class ChatServiceImpl implements IChatService {
 	@Autowired
 	private IRealtimeChatService realtimeChatService;
 
+	@Autowired
+	private IUserBlockService userBlockService;
+
 	@Override
 	public DtoChatRoom startChat(Integer currentUserId, DtoStartChat request) {
 
@@ -58,6 +62,10 @@ public class ChatServiceImpl implements IChatService {
 		User currentUser = userRepository.findById(currentUserId).get();
 		User targetUser = userRepository.findById(request.getTargetUserId()).orElseThrow(() -> new BaseException(
 				new ErrorMessage(MessageType.NO_RECORD_EXIST, "Mesaj atmak istediğin kişi bulunamadı!")));
+
+		if (userBlockService.isBlockedBetween(currentUserId, targetUser.getId())) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu kullanıcıyla mesajlaşamazsın"));
+		}
 
 		// Daha önce konuşmuşlar mı bakıyoruz
 		Optional<ChatRoom> existingRoom = chatRoomRepository.findChatRoomBetweenUsers(currentUserId,
@@ -87,6 +95,10 @@ public class ChatServiceImpl implements IChatService {
 		// odaya mesaj atamasın!
 		if (!room.getUser1().getId().equals(currentUserId) && !room.getUser2().getId().equals(currentUserId)) {
 			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu odaya mesaj atma yetkin yok!"));
+		}
+
+		if (userBlockService.isBlockedBetween(room.getUser1().getId(), room.getUser2().getId())) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu kullanıcıyla mesajlaşamazsın"));
 		}
 
 		User sender = userRepository.findById(currentUserId).get();
@@ -143,6 +155,10 @@ public class ChatServiceImpl implements IChatService {
 		if (!room.getUser1().getId().equals(currentUserId) && !room.getUser2().getId().equals(currentUserId)) {
 			throw new BaseException(
 					new ErrorMessage(MessageType.VALIDATION_FAILED, "Başkalarının mesajlarını okuyamazsın!"));
+		}
+
+		if (userBlockService.isBlockedBetween(room.getUser1().getId(), room.getUser2().getId())) {
+			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu kullanıcıyla mesajlaşamazsın"));
 		}
 
 		// Genelde mobilde sonsuz kaydırma yaparken eski mesajlara doğru inilir, bu

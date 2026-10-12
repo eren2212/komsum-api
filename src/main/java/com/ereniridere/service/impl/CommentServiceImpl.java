@@ -24,6 +24,7 @@ import com.ereniridere.repository.CommentRepository;
 import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.ICommentService;
+import com.ereniridere.service.IUserBlockService;
 
 @Service
 public class CommentServiceImpl implements ICommentService {
@@ -39,6 +40,9 @@ public class CommentServiceImpl implements ICommentService {
 
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
+
+	@Autowired
+	private IUserBlockService userBlockService;
 
 	@Override
 	public DtoComment createComment(Integer userId, Integer postId, DtoCreateComment request) {
@@ -58,6 +62,11 @@ public class CommentServiceImpl implements ICommentService {
 		if (!optionalPost.get().isActive()) {
 			throw new BaseException(
 					new ErrorMessage(MessageType.VALIDATION_FAILED, "Silinmiş bir gönderiye yorum yapamazsın!"));
+		}
+
+		if (userBlockService.isBlockedBetween(userId, optionalPost.get().getAuthor().getId())) {
+			throw new BaseException(
+					new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu gönderiye yorum yapamazsın"));
 		}
 
 		Comment newComment = new Comment();
@@ -83,6 +92,10 @@ public class CommentServiceImpl implements ICommentService {
 						new ErrorMessage(MessageType.VALIDATION_FAILED, "Silinmiş bir yoruma cevap veremezsin!"));
 			}
 
+			if (userBlockService.isBlockedBetween(userId, parent.getAuthor().getId())) {
+				throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu yoruma cevap veremezsin"));
+			}
+
 			newComment.setParentComment(effectiveParent);
 		}
 
@@ -102,19 +115,17 @@ public class CommentServiceImpl implements ICommentService {
 	}
 
 	@Override
-	public Page<DtoComment> getPostComments(Integer postId, int pageNo, int pageSize) {
+	public Page<DtoComment> getPostComments(Integer userId, Integer postId, int pageNo, int pageSize) {
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
-		Page<Comment> comments = commentRepository
-				.findByPostIdAndParentCommentIsNullAndIsActiveTrueOrderByCreatedAtAsc(postId, pageable);
+		Page<Comment> comments = commentRepository.findVisibleTopLevelComments(postId, userId, pageable);
 
 		return comments.map(this::toDto);
 	}
 
 	@Override
-	public Page<DtoComment> getCommentReplies(Integer commentId, int pageNo, int pageSize) {
+	public Page<DtoComment> getCommentReplies(Integer userId, Integer commentId, int pageNo, int pageSize) {
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
-		Page<Comment> replies = commentRepository.findByParentCommentIdAndIsActiveTrueOrderByCreatedAtAsc(commentId,
-				pageable);
+		Page<Comment> replies = commentRepository.findVisibleReplies(commentId, userId, pageable);
 
 		return replies.map(this::toDto);
 	}

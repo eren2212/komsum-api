@@ -49,7 +49,9 @@ public class UserControllerImpl extends BaseController implements IUserControlle
 	@Override
 	public RootEntity<DtoNeighbour> getNeighbourProfile(@PathVariable(name = "id") Integer id) {
 
-		return ok(userService.getNeighbourProfile(id));
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+		return ok(userService.getNeighbourProfile(currentUser.getId(), id));
 	}
 
 	// Profil güncelleme

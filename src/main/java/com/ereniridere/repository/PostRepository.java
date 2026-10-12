@@ -31,9 +31,11 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 			+ "LEFT JOIN FETCH a.merchantProfile m "
 			+ "WHERE n.id = :neighborhoodId AND p.isActive = true "
 			+ "AND (:type IS NULL OR p.type = :type) "
+			+ "AND NOT EXISTS (SELECT ub FROM UserBlock ub WHERE (ub.blocker.id = :userId AND ub.blocked.id = a.id) "
+			+ "     OR (ub.blocker.id = a.id AND ub.blocked.id = :userId)) "
 			+ "ORDER BY p.createdAt DESC, p.id DESC")
 	List<Post> getNeighborhoodFeedFirstPage(@Param("neighborhoodId") Integer neighborhoodId,
-			@Param("type") PostType type, Pageable pageable);
+			@Param("type") PostType type, @Param("userId") Integer userId, Pageable pageable);
 
 	@Query("SELECT p FROM Post p " + "JOIN FETCH p.author a " + "JOIN FETCH p.neighborhood n "
 			+ "LEFT JOIN FETCH a.merchantProfile m "
@@ -41,10 +43,12 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 			+ "AND (:type IS NULL OR p.type = :type) "
 			+ "AND (p.createdAt < :cursorTime "
 			+ "     OR (p.createdAt = :cursorTime AND p.id < :cursorId)) "
+			+ "AND NOT EXISTS (SELECT ub FROM UserBlock ub WHERE (ub.blocker.id = :userId AND ub.blocked.id = a.id) "
+			+ "     OR (ub.blocker.id = a.id AND ub.blocked.id = :userId)) "
 			+ "ORDER BY p.createdAt DESC, p.id DESC")
 	List<Post> getNeighborhoodFeedAfterCursor(@Param("neighborhoodId") Integer neighborhoodId,
 			@Param("type") PostType type, @Param("cursorTime") java.time.LocalDateTime cursorTime,
-			@Param("cursorId") Integer cursorId, Pageable pageable);
+			@Param("cursorId") Integer cursorId, @Param("userId") Integer userId, Pageable pageable);
 
 	// 2. KENDİ BİREYSEL POSTLARIM (Buna da JOIN FETCH ekledik hızlansın diye)
 	@Query("SELECT p FROM Post p " + "JOIN FETCH p.author a " + "JOIN FETCH p.neighborhood n "
@@ -70,6 +74,8 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 			+ "WHERE p.is_active = true AND p.type = 'SPONSORED' "
 			+ "AND m.is_verified = true AND p.user_id <> :userId "
 			+ "AND m.geo_location IS NOT NULL "
+			+ "AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE (ub.blocker_id = :userId AND ub.blocked_id = p.user_id) "
+			+ "     OR (ub.blocker_id = p.user_id AND ub.blocked_id = :userId)) "
 			+ "AND ST_DWithin(m.geo_location::geography, "
 			+ "    ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius) "
 			+ "ORDER BY m.geo_location::geography <-> ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography",
@@ -78,6 +84,8 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 					+ "WHERE p.is_active = true AND p.type = 'SPONSORED' "
 					+ "AND m.is_verified = true AND p.user_id <> :userId "
 					+ "AND m.geo_location IS NOT NULL "
+					+ "AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE (ub.blocker_id = :userId AND ub.blocked_id = p.user_id) "
+					+ "     OR (ub.blocker_id = p.user_id AND ub.blocked_id = :userId)) "
 					+ "AND ST_DWithin(m.geo_location::geography, "
 					+ "    ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius)", nativeQuery = true)
 	Page<Integer> findSponsoredNearbyPostIds(@Param("userId") Integer userId, @Param("lat") double lat,
@@ -94,13 +102,17 @@ public interface PostRepository extends JpaRepository<Post, Integer> {
 	// id'si verilen high-water mark'tan büyük olanların sayısı. id monoton arttığı için
 	// createdAt yerine id ile saymak yeterli ve daha ucuz.
 	@Query("SELECT COUNT(p) FROM Post p WHERE p.neighborhood.id = :neighborhoodId "
-			+ "AND p.isActive = true AND p.author.id <> :userId AND p.id > :sinceId")
+			+ "AND p.isActive = true AND p.author.id <> :userId AND p.id > :sinceId "
+			+ "AND NOT EXISTS (SELECT ub FROM UserBlock ub WHERE (ub.blocker.id = :userId AND ub.blocked.id = p.author.id) "
+			+ "     OR (ub.blocker.id = p.author.id AND ub.blocked.id = :userId))")
 	long countNewPostsSince(@Param("neighborhoodId") Integer neighborhoodId, @Param("userId") Integer userId,
 			@Param("sinceId") Integer sinceId);
 
 	// Taban çizgisi kurmak için: scope içindeki en büyük (en yeni) post id'si. Post yoksa null.
 	@Query("SELECT MAX(p.id) FROM Post p WHERE p.neighborhood.id = :neighborhoodId "
-			+ "AND p.isActive = true AND p.author.id <> :userId")
+			+ "AND p.isActive = true AND p.author.id <> :userId "
+			+ "AND NOT EXISTS (SELECT ub FROM UserBlock ub WHERE (ub.blocker.id = :userId AND ub.blocked.id = p.author.id) "
+			+ "     OR (ub.blocker.id = p.author.id AND ub.blocked.id = :userId))")
 	Integer findMaxPostIdInScope(@Param("neighborhoodId") Integer neighborhoodId, @Param("userId") Integer userId);
 
 	// Hesap silme: kullanıcının yazdığı tüm postları sil.

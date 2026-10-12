@@ -31,10 +31,14 @@ import com.ereniridere.repository.EventParticipantRepository;
 import com.ereniridere.repository.EventRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.service.IEventService;
+import com.ereniridere.service.IUserBlockService;
 import com.ereniridere.util.GeoUtils;
 
 @Service
 public class EventServiceImpl implements IEventService {
+
+	@Autowired
+	private IUserBlockService userBlockService;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -93,7 +97,7 @@ public class EventServiceImpl implements IEventService {
 		String district = dbUser.getNeighborhood().getDistrict();
 
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
-		Page<Event> events = eventRepository.findEventsByDistrict(district, pageable);
+		Page<Event> events = eventRepository.findEventsByDistrict(district, userId, pageable);
 
 		return events.map(event -> convertToDto(event, userId));
 	}
@@ -114,7 +118,7 @@ public class EventServiceImpl implements IEventService {
 		Pageable pageable = PageRequest.of(pageNo, pageSize);
 
 		// ADIM 1: Spatial index ile radius içindeki ID sayfasını çek (sıralı + count)
-		Page<Integer> idPage = eventRepository.findNearbyEventIds(lat, lng, radiusMeters, pageable);
+		Page<Integer> idPage = eventRepository.findNearbyEventIds(lat, lng, radiusMeters, userId, pageable);
 
 		if (idPage.isEmpty()) {
 			return new PageImpl<>(List.of(), pageable, idPage.getTotalElements());
@@ -213,6 +217,11 @@ public class EventServiceImpl implements IEventService {
 		if (!event.isActive()) {
 			throw new BaseException(
 					new ErrorMessage(MessageType.VALIDATION_FAILED, "Bu etkinlik iptal edilmiş veya silinmiş!"));
+		}
+
+		// Bildirim / link ile doğrudan açılsa bile engelli kullanıcının etkinliği gösterilmez.
+		if (userBlockService.isBlockedBetween(userId, event.getAuthor().getId())) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Bu etkinlik görüntülenemiyor"));
 		}
 
 		// 3. Ekrana basılacak DTO'ya çevir (Katılımcı sayısı, katıldım mı vb. bilgiler

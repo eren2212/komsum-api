@@ -15,7 +15,10 @@ public interface MarketplaceListingRepository extends JpaRepository<MarketplaceL
 
 	// 1. VİTRİN: Tek sorguda ilanı, satıcıyı ve mahalleyi çeker (HIZ KANATLANIYOR)
 	@Query("SELECT m FROM MarketplaceListing m " + "JOIN FETCH m.user u " + "JOIN FETCH m.neighborhood n "
-			+ "WHERE n.id = :neighborhoodId AND m.status = :status AND u.id != :userId " + "ORDER BY m.createdAt DESC")
+			+ "WHERE n.id = :neighborhoodId AND m.status = :status AND u.id != :userId "
+			+ "AND NOT EXISTS (SELECT ub FROM UserBlock ub WHERE (ub.blocker.id = :userId AND ub.blocked.id = u.id) "
+			+ "     OR (ub.blocker.id = u.id AND ub.blocked.id = :userId)) "
+			+ "ORDER BY m.createdAt DESC")
 	Page<MarketplaceListing> getNeighborhoodVitrin(@Param("neighborhoodId") Integer neighborhoodId,
 			@Param("status") ListingStatus status, @Param("userId") Integer userId, Pageable pageable);
 

@@ -23,4 +23,7 @@ public class DtoNeighbour {
 
 	private Integer karmaScore = 0;
 
+	// Görüntüleyen kullanıcı bu kişiyi engellemiş mi? (Profilde Engelle / Engeli Kaldır)
+	private boolean blockedByMe;
+
 }

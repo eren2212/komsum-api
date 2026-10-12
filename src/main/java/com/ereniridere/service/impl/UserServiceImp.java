@@ -35,7 +35,10 @@ import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.RefreshTokenRepository;
 import com.ereniridere.repository.ServiceProviderProfileRepository;
 import com.ereniridere.repository.UserConsentRepository;
+import com.ereniridere.repository.ReportRepository;
+import com.ereniridere.repository.UserBlockRepository;
 import com.ereniridere.repository.UserRepository;
+import com.ereniridere.service.IUserBlockService;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.service.IUserService;
 
@@ -82,6 +85,12 @@ public class UserServiceImp implements IUserService {
 	private ChatRoomRepository chatRoomRepository;
 	@Autowired
 	private RefreshTokenRepository refreshTokenRepository;
+	@Autowired
+	private ReportRepository reportRepository;
+	@Autowired
+	private UserBlockRepository userBlockRepository;
+	@Autowired
+	private IUserBlockService userBlockService;
 
 	UserServiceImp(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -113,7 +122,7 @@ public class UserServiceImp implements IUserService {
 
 	// Herhangi bir kişinin profilini alma
 	@Override
-	public DtoNeighbour getNeighbourProfile(Integer id) {
+	public DtoNeighbour getNeighbourProfile(Integer currentUserId, Integer id) {
 
 		Optional<User> optional = userRepository.findById(id);
 
@@ -126,10 +135,18 @@ public class UserServiceImp implements IUserService {
 		User dbUser = optional.get();
 		Neighborhood dbNeighborhood = optional.get().getNeighborhood();
 
+		// Karşı taraf beni engellediyse profili hiç görünmez. Ben engellediysem
+		// görünür ama blockedByMe=true döner (engeli kaldırabilmem için).
+		boolean blockedByMe = userBlockService.hasBlocked(currentUserId, id);
+		if (!blockedByMe && userBlockService.hasBlocked(id, currentUserId)) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadi"));
+		}
+
 		BeanUtils.copyProperties(dbUser, dtoNeighbour);
 		BeanUtils.copyProperties(dbNeighborhood, dtoNeighborhood);
 
 		dtoNeighbour.setNeighborhood(dtoNeighborhood);
+		dtoNeighbour.setBlockedByMe(blockedByMe);
 
 		return dtoNeighbour;
 	}
@@ -263,7 +280,10 @@ public class UserServiceImp implements IUserService {
 		chatRoomRepository.deleteAllByParticipant(userId);
 		// 9) Oturum kayıtları (user_id FK'sı kullanıcı silinmesini engellemesin)
 		refreshTokenRepository.deleteAllByUserId(userId);
-		// 10) En son: kullanıcının kendisi
+		// 10) Şikayetler (kullanıcının yaptığı) ve engellemeler (iki yön)
+		reportRepository.deleteAllByReporterId(userId);
+		userBlockRepository.deleteAllByUser(userId);
+		// 11) En son: kullanıcının kendisi
 		userRepository.delete(dbUser);
 	}
 }

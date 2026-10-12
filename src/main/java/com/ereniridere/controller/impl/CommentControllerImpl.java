@@ -49,7 +49,7 @@ public class CommentControllerImpl extends BaseController implements ICommentCon
 		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		Integer userId = currentUser.getId();
 
-		return ok(commentService.getPostComments(postId, pageNo, pageSize));
+		return ok(commentService.getPostComments(userId, postId, pageNo, pageSize));
 	}
 
 	@GetMapping("/comments/{commentId}/replies")
@@ -57,7 +57,9 @@ public class CommentControllerImpl extends BaseController implements ICommentCon
 	public RootEntity<Page<DtoComment>> getCommentReplies(@PathVariable(value = "commentId") Integer commentId,
 			int pageNo, int pageSize) {
 
-		return ok(commentService.getCommentReplies(commentId, pageNo, pageSize));
+		User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+		return ok(commentService.getCommentReplies(currentUser.getId(), commentId, pageNo, pageSize));
 	}
 
 	@PutMapping("/comments/{commentId}")

@@ -53,6 +53,10 @@ spring:
 # açılmaz. Böylece sunucuda env unutulursa sessizce zayıf/bilinen bir anahtarla
 # çalışma riski kalmaz. Yeni anahtar üretmek için: openssl rand -base64 32
 application:
+  # Şikayet / engelleme / otomatik gizleme bildirimlerinin gideceği adres.
+  # Boşsa olaylar sadece log'a düşer.
+  moderation:
+    email: ${MODERATION_EMAIL:}
   security:
     jwt:
       secret-key: ${JWT_SECRET}

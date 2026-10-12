@@ -36,6 +36,7 @@ import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.UserRepository;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.service.IPostService;
+import com.ereniridere.service.IUserBlockService;
 import com.ereniridere.util.GeoUtils;
 
 @Service
@@ -55,6 +56,9 @@ public class PostServiceImpl implements IPostService {
 	@Autowired
 	private ApplicationEventPublisher eventPublisher;
 
+	@Autowired
+	private IUserBlockService userBlockService;
+
 	PostServiceImpl(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
 	}
@@ -65,6 +69,10 @@ public class PostServiceImpl implements IPostService {
 				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Post bulunamadı")));
 		if (!post.isActive()) {
 			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Bu gönderi silinmiş"));
+		}
+		// Bildirim / link ile doğrudan açılsa bile engelli kullanıcının gönderisi gösterilmez.
+		if (userBlockService.isBlockedBetween(userId, post.getAuthor().getId())) {
+			throw new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Bu gönderi görüntülenemiyor"));
 		}
 		return convertToDto(post, userId);
 	}
@@ -230,10 +238,10 @@ public class PostServiceImpl implements IPostService {
 		// cursorTime null ise (ilk sayfa) ayrı bir sorguya gidiyoruz — bkz. PostRepository'deki not
 		// (PostgreSQL, TIMESTAMP parametresinin ":x IS NULL" dalında tipini çıkaramıyor).
 		List<Post> rows = cursorTime == null
-				? postRepository.getNeighborhoodFeedFirstPage(dbUser.getNeighborhood().getId(), type,
+				? postRepository.getNeighborhoodFeedFirstPage(dbUser.getNeighborhood().getId(), type, userId,
 						PageRequest.of(0, pageSize + 1))
 				: postRepository.getNeighborhoodFeedAfterCursor(dbUser.getNeighborhood().getId(), type, cursorTime,
-						cursorId, PageRequest.of(0, pageSize + 1));
+						cursorId, userId, PageRequest.of(0, pageSize + 1));
 
 		boolean hasNext = rows.size() > pageSize;
 		if (hasNext) {

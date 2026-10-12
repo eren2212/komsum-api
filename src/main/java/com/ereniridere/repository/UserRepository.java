@@ -23,8 +23,11 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 	// Bildirim için: aynı ilçedeki, hedef kullanıcı hariç tüm üyeler.
 	// Sadece FCM token'ı olanları çekmek için ek filtre koymuyoruz —
 	// bildirim DB'ye de yazılacağı için token'sız kullanıcılar da gerekir.
+	// Hedef kullanıcıyla arasında (herhangi bir yönde) engel olanlar hariç.
 	@Query("SELECT u FROM User u JOIN u.neighborhood n " +
-			"WHERE n.district = :district AND u.id <> :excludeUserId")
+			"WHERE n.district = :district AND u.id <> :excludeUserId " +
+			"AND NOT EXISTS (SELECT ub FROM UserBlock ub WHERE (ub.blocker.id = :excludeUserId AND ub.blocked.id = u.id) " +
+			"     OR (ub.blocker.id = u.id AND ub.blocked.id = :excludeUserId))")
 	List<User> findByDistrictExcludingUser(@Param("district") String district,
 			@Param("excludeUserId") Integer excludeUserId);
 

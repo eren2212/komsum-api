@@ -18,8 +18,12 @@ public interface EventRepository extends JpaRepository<Event, Integer> {
 	// "Bana, bağlı olduğu mahallenin ilçesi (district) benim gönderdiğim ilçe ile
 	// aynı olan aktif etkinlikleri getir. En yakın tarihli olan en üstte olsun!"
 	// NOT: /api/events/nearby konum göndermediğinde geriye-uyumlu fallback olarak kalır.
-	@Query("SELECT e FROM Event e WHERE e.neighborhood.district = :district AND e.isActive = true ORDER BY e.eventDate ASC")
-	Page<Event> findEventsByDistrict(@Param("district") String district, Pageable pageable);
+	@Query("SELECT e FROM Event e WHERE e.neighborhood.district = :district AND e.isActive = true "
+			+ "AND NOT EXISTS (SELECT ub FROM UserBlock ub WHERE (ub.blocker.id = :userId AND ub.blocked.id = e.author.id) "
+			+ "     OR (ub.blocker.id = e.author.id AND ub.blocked.id = :userId)) "
+			+ "ORDER BY e.eventDate ASC")
+	Page<Event> findEventsByDistrict(@Param("district") String district, @Param("userId") Integer userId,
+			Pageable pageable);
 
 	// BENİM OLUŞTURDUĞUM ETKİNLİKLER (En yeniler en üstte)
 	@Query("SELECT e FROM Event e WHERE e.author.id = :userId AND e.isActive = true ORDER BY e.createdAt DESC")
@@ -32,14 +36,18 @@ public interface EventRepository extends JpaRepository<Event, Integer> {
 	// En yakın tarihli etkinlik en üstte. Asıl hidrasyon findAllByIdInWithFetch ile yapılır.
 	@Query(value = "SELECT e.id FROM events e "
 			+ "WHERE e.is_active = true AND e.geo_location IS NOT NULL "
+			+ "AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE (ub.blocker_id = :userId AND ub.blocked_id = e.author_id) "
+			+ "     OR (ub.blocker_id = e.author_id AND ub.blocked_id = :userId)) "
 			+ "AND ST_DWithin(e.geo_location::geography, "
 			+ "    ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius) "
 			+ "ORDER BY e.event_date ASC", countQuery = "SELECT count(*) FROM events e "
 					+ "WHERE e.is_active = true AND e.geo_location IS NOT NULL "
+					+ "AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE (ub.blocker_id = :userId AND ub.blocked_id = e.author_id) "
+					+ "     OR (ub.blocker_id = e.author_id AND ub.blocked_id = :userId)) "
 					+ "AND ST_DWithin(e.geo_location::geography, "
 					+ "    ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius)", nativeQuery = true)
 	Page<Integer> findNearbyEventIds(@Param("lat") double lat, @Param("lng") double lng,
-			@Param("radius") int radius, Pageable pageable);
+			@Param("radius") int radius, @Param("userId") Integer userId, Pageable pageable);
 
 	// 🚨 SPATIAL YAKINLIK SORGUSU — ADIM 2 (hidrasyon) 🚨
 	// ID'lerden author + neighborhood'u TEK sorguda JOIN FETCH ile çeker (N+1 yok).

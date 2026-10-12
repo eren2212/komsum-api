@@ -10,7 +10,7 @@ public interface IUserService {
 
 	public DtoUserProfile getMyProfile(Integer id);
 
-	public DtoNeighbour getNeighbourProfile(Integer id);
+	public DtoNeighbour getNeighbourProfile(Integer currentUserId, Integer id);
 
 	public DtoUserProfile updateProfile(Integer id, DtoUserUpdate dtoUserUpdate);
 
