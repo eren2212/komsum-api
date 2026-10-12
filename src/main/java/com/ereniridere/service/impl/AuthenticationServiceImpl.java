@@ -4,10 +4,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -25,7 +23,6 @@ import com.ereniridere.entity.LegalDocument;
 import com.ereniridere.entity.Role;
 import com.ereniridere.entity.User;
 import com.ereniridere.entity.UserConsent;
-import com.ereniridere.entity.enums.LegalDocumentType;
 import com.ereniridere.exception.BaseException;
 import com.ereniridere.exception.ErrorMessage;
 import com.ereniridere.exception.MessageType;
@@ -94,18 +91,16 @@ public class AuthenticationServiceImpl implements IAuthenticationService {
 					new ErrorMessage(MessageType.RECORD_ALREADY_EXISTS, "Bu e-posta zaten kullanılıyor"));
 		}
 
-		// Onaylanan yasal metinleri doğrula: KVKK + Aydınlatma metninin ikisi de
-		// kabul edilmiş olmalı.
-		List<LegalDocument> acceptedDocuments = legalDocumentRepository
-				.findAllById(request.getAcceptedLegalDocumentIds());
-		Set<LegalDocumentType> acceptedTypes = EnumSet.noneOf(LegalDocumentType.class);
-		for (LegalDocument doc : acceptedDocuments) {
-			acceptedTypes.add(doc.getType());
-		}
-		if (!acceptedTypes.contains(LegalDocumentType.KVKK)
-				|| !acceptedTypes.contains(LegalDocumentType.AYDINLATMA_METNI)) {
+		// Onaylanan yasal metinleri doğrula: yürürlükteki TÜM metinler (Aydınlatma,
+		// Açık Rıza, Kullanım Koşulları) güncel sürümleriyle kabul edilmiş olmalı.
+		// Eski sürümün id'sini gönderen istemci de reddedilir.
+		List<LegalDocument> activeDocuments = legalDocumentRepository.findByActiveTrue();
+		List<LegalDocument> acceptedDocuments = activeDocuments.stream()
+				.filter(doc -> request.getAcceptedLegalDocumentIds().contains(doc.getId()))
+				.toList();
+		if (activeDocuments.isEmpty() || acceptedDocuments.size() != activeDocuments.size()) {
 			throw new BaseException(new ErrorMessage(MessageType.VALIDATION_FAILED,
-					"Kayıt için KVKK Açık Rıza ve Aydınlatma metinlerinin ikisini de onaylamanız gerekiyor."));
+					"Kayıt için Kullanım Koşulları, Açık Rıza ve Aydınlatma metinlerinin hepsini onaylamanız gerekiyor."));
 		}
 
 		var selectedNeighborhood = neighborhoodService.getOrCreate(request.getNeighborhoodId());
