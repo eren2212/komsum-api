@@ -37,6 +37,15 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 	@Query("UPDATE User u SET u.fcmToken = NULL WHERE u.fcmToken = :token")
 	void clearFcmToken(@Param("token") String token);
 
+	// Token yeni bir kullanıcıya kaydedilirken diğer kullanıcılardan temizlemek için.
+	// Kaydı yapan kullanıcının satırına dokunmaz: toplu UPDATE bellekteki entity'yi
+	// güncellemediğinden, kendi satırı da temizlenseydi aynı token'la yapılan
+	// setFcmToken "değişiklik yok" sayılıp DB'ye yazılmaz ve token kaybolurdu.
+	@Modifying
+	@Transactional
+	@Query("UPDATE User u SET u.fcmToken = NULL WHERE u.fcmToken = :token AND u.id <> :userId")
+	void clearFcmTokenFromOtherUsers(@Param("token") String token, @Param("userId") Integer userId);
+
 	// PART 2: "En son görülen" işaretini yalnızca İLERİ taşı (geri gitmesin).
 	// Mevcut değer null ise veya verilenden küçükse günceller.
 	@Modifying

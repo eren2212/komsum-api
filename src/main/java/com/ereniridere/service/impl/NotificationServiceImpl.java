@@ -365,6 +365,11 @@ public class NotificationServiceImpl implements INotificationService {
 	public void saveFcmToken(Integer userId, String token) {
 		User user = userRepository.findById(userId).orElseThrow(
 				() -> new BaseException(new ErrorMessage(MessageType.NO_RECORD_EXIST, "Kullanıcı bulunamadı")));
+		// Bir cihaz token'ı aynı anda tek kullanıcıya ait olmalı. Önceki kullanıcının
+		// oturumu sunucuya haber verilmeden düştüyse (refresh token süresi doldu vb.)
+		// token onun hesabında kalır; aynı cihazda başka biri giriş yapınca telefon
+		// iki hesabın bildirimlerini (mesaj önizlemeleriyle) birden alırdı.
+		userRepository.clearFcmTokenFromOtherUsers(token, userId);
 		user.setFcmToken(token);
 		userRepository.save(user);
 	}
