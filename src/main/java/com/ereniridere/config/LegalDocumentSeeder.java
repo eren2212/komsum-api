@@ -34,10 +34,10 @@ public class LegalDocumentSeeder implements CommandLineRunner {
 	@Override
 	@Transactional
 	public void run(String... args) {
-		syncDocument(LegalDocumentType.AYDINLATMA_METNI, "KVKK Aydınlatma Metni", AYDINLATMA_METNI, 3);
+		syncDocument(LegalDocumentType.AYDINLATMA_METNI, "KVKK Aydınlatma Metni", AYDINLATMA_METNI, 4);
 		syncDocument(LegalDocumentType.KVKK, "Kişisel Verilerin Korunması ve İşlenmesi Sözleşmesi",
-				KVKK_SOZLESMESI, 3);
-		syncDocument(LegalDocumentType.KULLANIM_KOSULLARI, "Kullanım Şartları", KULLANIM_SARTLARI, 2);
+				KVKK_SOZLESMESI, 4);
+		syncDocument(LegalDocumentType.KULLANIM_KOSULLARI, "Kullanım Şartları", KULLANIM_SARTLARI, 3);
 	}
 
 	private void syncDocument(LegalDocumentType type, String title, String content, int version) {
@@ -97,7 +97,7 @@ public class LegalDocumentSeeder implements CommandLineRunner {
 			Kişisel verileriniz hesabınız açık kaldığı sürece saklanır. Hesabınızı uygulama içinden (Profil > Hesabı Sil) sildiğinizde hesabınız ve hesabınıza bağlı tüm veriler kalıcı olarak silinir.
 
 			5. İlgili Kişinin Hakları (KVKK m. 11)
-			KVKK'nın 11. maddesi uyarınca; kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini ve silinmesini isteme haklarına sahipsiniz. Başvurularınızı merhaba@komsum.app adresine iletebilirsiniz.
+			KVKK'nın 11. maddesi uyarınca; kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini ve silinmesini isteme haklarına sahipsiniz. Başvurularınızı appereniridere@gmail.com adresine iletebilirsiniz.
 			""";
 
 	private static final String KVKK_SOZLESMESI = """
@@ -151,7 +151,7 @@ public class LegalDocumentSeeder implements CommandLineRunner {
 			Kişisel veriler, işlenme amaçlarının gerektirdiği süre boyunca ve hesap açık kaldığı sürece saklanır. Kullanıcı hesabını uygulama içinden sildiğinde hesabı ve hesabına bağlı tüm veriler kalıcı olarak silinir. Kanunlardan doğan saklama yükümlülükleri saklıdır.
 
 			9. İlgili Kişinin Hakları (KVKK Madde 11)
-			Kullanıcı, KVKK'nın 11. maddesi uyarınca; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde/yurt dışında aktarıldığı üçüncü kişileri bilme, eksik/yanlış işlenmişse düzeltilmesini isteme ve verilerin silinmesini/yok edilmesini talep etme haklarına sahiptir. Başvurular merhaba@komsum.app adresi üzerinden gerçekleştirilir.
+			Kullanıcı, KVKK'nın 11. maddesi uyarınca; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işlenme amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde/yurt dışında aktarıldığı üçüncü kişileri bilme, eksik/yanlış işlenmişse düzeltilmesini isteme ve verilerin silinmesini/yok edilmesini talep etme haklarına sahiptir. Başvurular appereniridere@gmail.com adresi üzerinden gerçekleştirilir.
 
 			10. Yürürlük ve Kabul
 			İşbu Sözleşme, Kullanıcı tarafından elektronik ortamda onaylandığı tarihte yürürlüğe girmiştir. Kullanıcı, Sözleşme'yi onaylamakla, Sözleşme'de yer alan tüm şartları okuduğunu, anladığını ve kabul ettiğini beyan eder. İşbu Sözleşme'den doğacak uyuşmazlıklarda, Platform'un dijital log kayıtları HMK m. 193 uyarınca kesin delil teşkil edecektir.
@@ -199,6 +199,6 @@ public class LegalDocumentSeeder implements CommandLineRunner {
 			Bu şartlar güncellenebilir. Önemli değişikliklerde uygulama üzerinden bilgilendirilirsiniz.
 
 			10. İletişim
-			Soru ve talepleriniz için merhaba@komsum.app adresine yazabilir veya uygulamadaki Profil > Yardım ve Destek bölümünü kullanabilirsiniz.
+			Soru ve talepleriniz için appereniridere@gmail.com adresine yazabilir veya uygulamadaki Profil > Yardım ve Destek bölümünü kullanabilirsiniz.
 			""";
 }
