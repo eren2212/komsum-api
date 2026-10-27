@@ -44,6 +44,9 @@ import com.ereniridere.service.IUserBlockService;
 import com.ereniridere.security.filter.JwtAuthenticationFilter;
 import com.ereniridere.service.IUserService;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 @Service
 public class UserServiceImp implements IUserService {
 
@@ -97,6 +100,8 @@ public class UserServiceImp implements IUserService {
 	private UserBadgeRepository userBadgeRepository;
 	@Autowired
 	private IUserBlockService userBlockService;
+	@PersistenceContext
+	private EntityManager entityManager;
 
 	UserServiceImp(JwtAuthenticationFilter jwtAuthenticationFilter) {
 		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -292,7 +297,14 @@ public class UserServiceImp implements IUserService {
 		// 11) Oyunlaştırma: görev tamamlamaları ve kazanılan rozetler
 		taskCompletionRepository.deleteAllByUserId(userId);
 		userBadgeRepository.deleteAllByUserId(userId);
-		// 12) En son: kullanıcının kendisi
-		userRepository.delete(dbUser);
+		// 12) En son: kullanıcının kendisi.
+		// Yukarıdaki toplu DELETE sorguları persistence context'i güncellemez. User
+		// yüklenirken mappedBy tarafındaki OneToOne (merchantProfile) lazy olamadığı
+		// için esnaf profili de context'e gelir; silinmiş satıra rağmen orada kalır ve
+		// flush'ta TransientPropertyValueException'a yol açar. Context'i boşaltıp
+		// kullanıcıyı ID ile yeniden yükleyerek sil (profil artık null gelir).
+		entityManager.flush();
+		entityManager.clear();
+		userRepository.deleteById(userId);
 	}
 }
