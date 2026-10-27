@@ -3,8 +3,10 @@ package com.ereniridere.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ereniridere.entity.UserBadge;
 
@@ -17,4 +19,10 @@ public interface UserBadgeRepository extends JpaRepository<UserBadge, Integer> {
 	List<Integer> findBadgeIdsByUserId(@Param("userId") Integer userId);
 
 	long countByUserId(Integer userId);
+
+	// Hesap silme: kullanıcının kazandığı tüm rozet kayıtlarını sil.
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM UserBadge ub WHERE ub.user.id = :userId")
+	void deleteAllByUserId(@Param("userId") Integer userId);
 }

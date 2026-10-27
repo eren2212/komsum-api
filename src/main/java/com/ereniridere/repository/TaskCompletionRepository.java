@@ -4,8 +4,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.ereniridere.entity.TaskCompletion;
 import com.ereniridere.entity.enums.TaskType;
@@ -16,4 +18,10 @@ public interface TaskCompletionRepository extends JpaRepository<TaskCompletion, 
 
 	@Query("SELECT tc.taskType FROM TaskCompletion tc WHERE tc.user.id = :userId AND tc.completionDate = :date")
 	List<TaskType> findCompletedTypes(@Param("userId") Integer userId, @Param("date") LocalDate date);
+
+	// Hesap silme: kullanıcının tüm görev tamamlama kayıtlarını sil.
+	@Modifying
+	@Transactional
+	@Query("DELETE FROM TaskCompletion tc WHERE tc.user.id = :userId")
+	void deleteAllByUserId(@Param("userId") Integer userId);
 }

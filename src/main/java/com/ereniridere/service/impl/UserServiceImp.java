@@ -34,6 +34,8 @@ import com.ereniridere.repository.PostLikeRepository;
 import com.ereniridere.repository.PostRepository;
 import com.ereniridere.repository.RefreshTokenRepository;
 import com.ereniridere.repository.ServiceProviderProfileRepository;
+import com.ereniridere.repository.TaskCompletionRepository;
+import com.ereniridere.repository.UserBadgeRepository;
 import com.ereniridere.repository.UserConsentRepository;
 import com.ereniridere.repository.ReportRepository;
 import com.ereniridere.repository.UserBlockRepository;
@@ -89,6 +91,10 @@ public class UserServiceImp implements IUserService {
 	private ReportRepository reportRepository;
 	@Autowired
 	private UserBlockRepository userBlockRepository;
+	@Autowired
+	private TaskCompletionRepository taskCompletionRepository;
+	@Autowired
+	private UserBadgeRepository userBadgeRepository;
 	@Autowired
 	private IUserBlockService userBlockService;
 
@@ -283,7 +289,10 @@ public class UserServiceImp implements IUserService {
 		// 10) Şikayetler (kullanıcının yaptığı) ve engellemeler (iki yön)
 		reportRepository.deleteAllByReporterId(userId);
 		userBlockRepository.deleteAllByUser(userId);
-		// 11) En son: kullanıcının kendisi
+		// 11) Oyunlaştırma: görev tamamlamaları ve kazanılan rozetler
+		taskCompletionRepository.deleteAllByUserId(userId);
+		userBadgeRepository.deleteAllByUserId(userId);
+		// 12) En son: kullanıcının kendisi
 		userRepository.delete(dbUser);
 	}
 }
